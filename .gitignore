@@ -42,3 +42,4 @@ yarn-error.log*
 
 # never commit real resumes — only synthetic fixtures are tracked
 tests/fixtures/private/
+/pdf.worker.min.mjs

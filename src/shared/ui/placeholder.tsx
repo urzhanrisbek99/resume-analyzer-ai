@@ -4,10 +4,7 @@ import { cn } from '@/shared/lib/cn';
 
 export function Skeleton({ className }: { className?: string }) {
   return (
-    <div
-      className={cn('surface-sunken animate-pulse rounded-md', className)}
-      aria-hidden="true"
-    />
+    <div className={cn('surface-sunken animate-pulse rounded-md', className)} aria-hidden="true" />
   );
 }
 
@@ -22,10 +19,7 @@ export interface EmptyStateProps {
 export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
   return (
     <div
-      className={cn(
-        'flex flex-col items-center justify-center px-6 py-12 text-center',
-        className,
-      )}
+      className={cn('flex flex-col items-center justify-center px-6 py-12 text-center', className)}
     >
       {icon ? <div className="text-muted mb-3">{icon}</div> : null}
       <p className="text-sm font-semibold">{title}</p>

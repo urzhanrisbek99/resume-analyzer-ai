@@ -1,12 +1,22 @@
 import { resolve } from 'node:path';
 
-import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 const r = (p: string) => resolve(import.meta.dirname, p);
 
+/**
+ * No React plugin here on purpose.
+ *
+ * `@vitejs/plugin-react` pulls in its own Vite (currently the rolldown build),
+ * whose plugin types no longer match the Vite that Vitest resolves. Tests need
+ * nothing the plugin provides except the JSX transform — no fast refresh, no HMR
+ * — so esbuild handles JSX directly and the version conflict disappears.
+ */
 export default defineConfig({
-  plugins: [react()],
+  esbuild: {
+    jsx: 'automatic',
+    jsxImportSource: 'react',
+  },
   resolve: {
     alias: {
       '@/views': r('./src/views'),

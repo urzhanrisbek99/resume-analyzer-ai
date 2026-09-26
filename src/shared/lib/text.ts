@@ -28,11 +28,11 @@ export function squish(input: string): string {
 export function normalize(input: string): string {
   return input
     .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[‐-―−]/g, '-')
-    .replace(/[‘’ʼ]/g, "'")
-    .replace(/[“”]/g, '"')
-    .replace(/ /g, ' ')
+    .replace(/[\u0300-\u036f]/gu, '')
+    .replace(/[\u2010-\u2015\u2212]/gu, '-')
+    .replace(/[\u2018\u2019\u02bc]/gu, "'")
+    .replace(/[\u201c\u201d]/gu, '"')
+    .replace(/\u00a0/gu, ' ')
     .toLowerCase()
     .trim();
 }
@@ -90,11 +90,7 @@ export function editDistance(a: string, b: string, max = 4): number {
     let rowMin = i;
     for (let j = 1; j <= b.length; j += 1) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      const value = Math.min(
-        (next[j - 1] ?? 0) + 1,
-        (prev[j] ?? 0) + 1,
-        (prev[j - 1] ?? 0) + cost,
-      );
+      const value = Math.min((next[j - 1] ?? 0) + 1, (prev[j] ?? 0) + 1, (prev[j - 1] ?? 0) + cost);
       next.push(value);
       if (value < rowMin) rowMin = value;
     }
@@ -133,7 +129,7 @@ export function excerpt(input: string, maxLength = 120): string {
   if (flat.length <= maxLength) return flat;
   const head = Math.ceil((maxLength - 1) / 2);
   const tail = Math.floor((maxLength - 1) / 2);
-  return `${flat.slice(0, head)}…${flat.slice(flat.length - tail)}`;
+  return `${flat.slice(0, head)}\u2026${flat.slice(flat.length - tail)}`;
 }
 
 export function titleCase(input: string): string {

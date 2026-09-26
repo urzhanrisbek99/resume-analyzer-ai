@@ -5,11 +5,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
 
   typescript: {
-    // Type errors must fail the build. CI runs `typecheck` separately as well.
+    // Type errors must fail the build. CI runs `typecheck` separately too.
     ignoreBuildErrors: false,
-  },
-  eslint: {
-    ignoreDuringBuilds: false,
   },
 
   // pdfjs-dist ships a worker as a separate ESM chunk; keep it out of the

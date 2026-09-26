@@ -40,10 +40,9 @@
   --color-good-700: oklch(48.6% 0.118 157);
 
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Inter, Roboto, 'Helvetica Neue',
-    Arial, sans-serif;
-  --font-mono:
-    ui-monospace, SFMono-Regular, 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
 
   --radius-card: 0.875rem;
 

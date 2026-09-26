@@ -14,11 +14,7 @@ export interface YearMonth {
 }
 
 export type DateFormatTag =
-  | 'month-name-year'
-  | 'numeric-month-year'
-  | 'year-only'
-  | 'iso'
-  | 'unknown';
+  'month-name-year' | 'numeric-month-year' | 'year-only' | 'iso' | 'unknown';
 
 export interface DateRange {
   start: YearMonth | null;
@@ -30,31 +26,70 @@ export interface DateRange {
 }
 
 const MONTHS: Record<string, number> = {
-  jan: 1, january: 1, janv: 1,
-  feb: 2, february: 2, febr: 2,
-  mar: 3, march: 3,
-  apr: 4, april: 4,
+  jan: 1,
+  january: 1,
+  janv: 1,
+  feb: 2,
+  february: 2,
+  febr: 2,
+  mar: 3,
+  march: 3,
+  apr: 4,
+  april: 4,
   may: 5,
-  jun: 6, june: 6,
-  jul: 7, july: 7,
-  aug: 8, august: 8,
-  sep: 9, sept: 9, september: 9,
-  oct: 10, october: 10,
-  nov: 11, november: 11,
-  dec: 12, december: 12,
+  jun: 6,
+  june: 6,
+  jul: 7,
+  july: 7,
+  aug: 8,
+  august: 8,
+  sep: 9,
+  sept: 9,
+  september: 9,
+  oct: 10,
+  october: 10,
+  nov: 11,
+  november: 11,
+  dec: 12,
+  december: 12,
   // Russian, both nominative and genitive forms as they appear in resumes.
-  янв: 1, январь: 1, января: 1,
-  фев: 2, февраль: 2, февраля: 2,
-  мар: 3, март: 3, марта: 3,
-  апр: 4, апрель: 4, апреля: 4,
-  май: 5, мая: 5,
-  июн: 6, июнь: 6, июня: 6,
-  июл: 7, июль: 7, июля: 7,
-  авг: 8, август: 8, августа: 8,
-  сен: 9, сент: 9, сентябрь: 9, сентября: 9,
-  окт: 10, октябрь: 10, октября: 10,
-  ноя: 11, нояб: 11, ноябрь: 11, ноября: 11,
-  дек: 12, декабрь: 12, декабря: 12,
+  янв: 1,
+  январь: 1,
+  января: 1,
+  фев: 2,
+  февраль: 2,
+  февраля: 2,
+  мар: 3,
+  март: 3,
+  марта: 3,
+  апр: 4,
+  апрель: 4,
+  апреля: 4,
+  май: 5,
+  мая: 5,
+  июн: 6,
+  июнь: 6,
+  июня: 6,
+  июл: 7,
+  июль: 7,
+  июля: 7,
+  авг: 8,
+  август: 8,
+  августа: 8,
+  сен: 9,
+  сент: 9,
+  сентябрь: 9,
+  сентября: 9,
+  окт: 10,
+  октябрь: 10,
+  октября: 10,
+  ноя: 11,
+  нояб: 11,
+  ноябрь: 11,
+  ноября: 11,
+  дек: 12,
+  декабрь: 12,
+  декабря: 12,
 };
 
 const CURRENT_MARKERS = [
@@ -72,11 +107,10 @@ const CURRENT_MARKERS = [
   'нв',
   'сейчас',
   'текущее время',
-  '现在',
 ];
 
 /** Any of the dash-ish separators a range may use, including the word forms. */
-const RANGE_SEPARATOR = /\s*(?:[-‐-―−~]|--|to\b|до\b|по\b)\s*/i;
+const RANGE_SEPARATOR = /\s*(?:[-\u2010-\u2015\u2212~]|--|to\b|\u0434\u043e\b|\u043f\u043e\b)\s*/iu;
 
 const MIN_YEAR = 1950;
 const MAX_YEAR = 2100;
@@ -84,7 +118,7 @@ const MAX_YEAR = 2100;
 function cleanToken(input: string): string {
   return input
     .toLowerCase()
-    .replace(/[ ]/g, ' ')
+    .replace(/\u00a0/gu, ' ')
     .replace(/[.,;]+$/g, '')
     .trim();
 }
@@ -193,7 +227,7 @@ export function parseDateRange(input: string): DateRange | null {
 export function findDateRanges(text: string): DateRange[] {
   const pattern = new RegExp(
     String.raw`(?:\p{L}{3,10}\.?\s+)?\d{4}(?:[-.\/]\d{1,2})?` +
-      String.raw`\s*(?:[-‐-―−~]|--|to|до|по)\s*` +
+      String.raw`\s*(?:[-\u2010-\u2015\u2212~]|--|to|\u0434\u043e|\u043f\u043e)\s*` +
       String.raw`(?:(?:\p{L}{3,10}\.?\s+)?\d{4}(?:[-.\/]\d{1,2})?|` +
       String.raw`present|current|now|ongoing|настоящее время|по настоящее время|н\.в\.)`,
     'giu',

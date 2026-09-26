@@ -7,8 +7,7 @@
  */
 
 export type Result<T, E = AppError> =
-  | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly error: E };
+  { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: E };
 
 export function ok<T>(value: T): Result<T, never> {
   return { ok: true, value };
@@ -39,7 +38,12 @@ export interface AppError {
   cause?: unknown;
 }
 
-export function appError(code: ErrorCode, message: string, hint?: string, cause?: unknown): AppError {
+export function appError(
+  code: ErrorCode,
+  message: string,
+  hint?: string,
+  cause?: unknown,
+): AppError {
   return hint === undefined ? { code, message, cause } : { code, message, hint, cause };
 }
 

@@ -1,11 +1,7 @@
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-import { FlatCompat } from '@eslint/eslintrc';
+import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
+import nextTypescript from 'eslint-config-next/typescript';
 import boundaries from 'eslint-plugin-boundaries';
 import tseslint from 'typescript-eslint';
-
-const compat = new FlatCompat({ baseDirectory: dirname(fileURLToPath(import.meta.url)) });
 
 /**
  * Feature-Sliced Design is enforced mechanically, not by convention.
@@ -21,7 +17,12 @@ const compat = new FlatCompat({ baseDirectory: dirname(fileURLToPath(import.meta
 const fsdElements = [
   { type: 'app', pattern: 'app/**/*', mode: 'full' },
   // `entities-x` must precede `entities`: it is a more specific path.
-  { type: 'entities-x', pattern: 'src/entities/*/@x/*', mode: 'full', capture: ['slice', 'target'] },
+  {
+    type: 'entities-x',
+    pattern: 'src/entities/*/@x/*',
+    mode: 'full',
+    capture: ['slice', 'target'],
+  },
   { type: 'views', pattern: 'src/views/*', capture: ['slice'] },
   { type: 'widgets', pattern: 'src/widgets/*', capture: ['slice'] },
   { type: 'features', pattern: 'src/features/*', capture: ['slice'] },
@@ -37,11 +38,15 @@ export default tseslint.config(
       'coverage/**',
       'playwright-report/**',
       'test-results/**',
+      'public/**',
       'next-env.d.ts',
     ],
   },
 
-  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  // eslint-config-next 16 ships native flat configs, so they are spread
+  // directly. Routing them through FlatCompat crashes the config validator.
+  ...nextCoreWebVitals,
+  ...nextTypescript,
 
   {
     name: 'project/typescript',
@@ -49,7 +54,13 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/consistent-type-imports': [
         'error',
-        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
+        {
+          prefer: 'type-imports',
+          fixStyle: 'inline-type-imports',
+          // `typeof import('pdfjs-dist')` is how a dynamically imported module
+          // is typed without loading it eagerly. Keep that legal.
+          disallowTypeAnnotations: false,
+        },
       ],
       '@typescript-eslint/no-unused-vars': [
         'error',
@@ -57,6 +68,9 @@ export default tseslint.config(
       ],
       'no-console': ['error', { allow: ['warn', 'error'] }],
       eqeqeq: ['error', 'always', { null: 'ignore' }],
+      // Invisible characters in source are unreviewable; escape them instead.
+      'no-irregular-whitespace': ['error', { skipRegExps: false, skipStrings: false }],
+      'no-control-regex': 'error',
     },
   },
 
@@ -85,7 +99,10 @@ export default tseslint.config(
             },
             // The `@x` segment describes one entity in terms of another, so it
             // may read the entity that owns it, plus shared.
-            { from: 'entities-x', allow: ['shared', ['entities', { slice: '${from.slice}' }]] },
+            {
+              from: 'entities-x',
+              allow: ['shared', ['entities', { slice: '${from.slice}' }]],
+            },
             { from: 'shared', allow: ['shared'] },
           ],
         },
@@ -119,8 +136,8 @@ export default tseslint.config(
   },
 
   {
-    name: 'project/config-files',
-    files: ['*.config.ts', '*.config.mjs', 'app/api/**/*.ts'],
+    name: 'project/config-and-scripts',
+    files: ['*.config.ts', '*.config.mjs', 'scripts/**/*.mjs', 'app/api/**/*.ts'],
     rules: { 'no-console': 'off' },
   },
 );
