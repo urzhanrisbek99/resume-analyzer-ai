@@ -125,6 +125,17 @@ export default tseslint.config(
   },
 
   {
+    // The `@x` segment is an internal view of the entity that owns it: it
+    // re-exports that entity's own model for one named consumer. Reaching the
+    // model directly is the point of the notation, so the public-API rule does
+    // not apply here. `boundaries/element-types` still governs which entity may
+    // consume it, which is the constraint that actually matters.
+    name: 'project/fsd-cross-import-surface',
+    files: ['src/entities/*/@x/**'],
+    rules: { 'boundaries/entry-point': 'off' },
+  },
+
+  {
     name: 'project/tests',
     files: ['**/*.test.ts', '**/*.test.tsx', 'tests/**/*.ts'],
     rules: {
