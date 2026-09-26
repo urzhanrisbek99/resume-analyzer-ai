@@ -1,0 +1,15 @@
+# Normalise line endings so switching between laptops never shows phantom diffs.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.docx binary
+*.woff binary
+*.woff2 binary
+
+package-lock.json -diff linguist-generated=true
