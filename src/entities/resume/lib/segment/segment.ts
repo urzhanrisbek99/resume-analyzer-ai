@@ -145,6 +145,12 @@ function indexLines(plainText: string): IndexedLine[] {
 interface TypographyIndex {
   byText: Map<string, PositionedLine>;
   medianFontSize: number;
+  /**
+   * False for plain text and for PDFs that set everything in one weight and
+   * size. Heading detection then has no typographic evidence to lean on and
+   * falls back to structural cues instead.
+   */
+  hasSignal: boolean;
 }
 
 function buildTypographyIndex(positionedLines: PositionedLine[]): TypographyIndex {
@@ -160,7 +166,10 @@ function buildTypographyIndex(positionedLines: PositionedLine[]): TypographyInde
     .sort((a, b) => a - b);
   const medianFontSize = sizes.length > 0 ? (sizes[Math.floor(sizes.length / 2)] ?? 0) : 0;
 
-  return { byText, medianFontSize };
+  const anyBold = positionedLines.some((line) => line.isBold);
+  const sizeVaries = sizes.length > 1 && (sizes[sizes.length - 1] ?? 0) > (sizes[0] ?? 0) * 1.1;
+
+  return { byText, medianFontSize, hasSignal: anyBold || sizeVaries };
 }
 
 interface HeadingHit {
@@ -171,6 +180,7 @@ interface HeadingHit {
 
 function findHeadings(lines: IndexedLine[], typography: TypographyIndex): HeadingHit[] {
   const hits: HeadingHit[] = [];
+  const firstContentIndex = lines.findIndex((line) => !line.isBlank);
 
   lines.forEach((line, i) => {
     if (line.isBlank) return;
@@ -201,14 +211,55 @@ function findHeadings(lines: IndexedLine[], typography: TypographyIndex): Headin
         (typography.medianFontSize > 0 &&
           positioned.fontSizeRatio > typography.medianFontSize * 1.15));
 
-    // Without typography, demand the strongest textual signal: all caps.
     const isShouted = uppercaseRatio(text) > 0.7;
-    if (!isEmphasised && !isShouted) return;
 
-    hits.push({ line, kind: 'unknown', confidence: isEmphasised ? 0.6 : 0.5 });
+    /*
+     * With no typographic evidence anywhere in the document, "looks like a
+     * heading" has to be decided structurally. A line qualifies when it is
+     * short, sits alone after a blank line, and introduces a real block of
+     * text. The very first line is excluded: that is the candidate's name,
+     * which satisfies every other test.
+     *
+     * This is what makes lowercase, template-free resumes work -- headings
+     * like "where i have been" carry no capitals and no vocabulary match.
+     */
+    const isStructuralHeading =
+      !typography.hasSignal && i !== firstContentIndex && introducesBlock(lines, i);
+
+    if (!isEmphasised && !isShouted && !isStructuralHeading) return;
+
+    const confidence = isEmphasised ? 0.6 : isShouted ? 0.5 : 0.45;
+    hits.push({ line, kind: 'unknown', confidence });
   });
 
   return dropSpuriousHeadings(hits);
+}
+
+/** Minimum body a structural heading must introduce to be believable. */
+const MIN_BLOCK_LINES = 2;
+const MIN_BLOCK_WORDS = 12;
+
+/**
+ * Whether the lines below `index` form a block substantial enough to be a
+ * section body rather than the next line of a contact header.
+ */
+function introducesBlock(lines: IndexedLine[], index: number): boolean {
+  let blockLines = 0;
+  let blockWords = 0;
+
+  for (let i = index + 1; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (!line) break;
+    if (line.isBlank) {
+      if (blockLines > 0) break;
+      continue;
+    }
+    blockLines += 1;
+    blockWords += wordCount(line.text);
+    if (blockLines >= MIN_BLOCK_LINES || blockWords >= MIN_BLOCK_WORDS) return true;
+  }
+
+  return false;
 }
 
 /**

@@ -1,6 +1,6 @@
 import { findDateRanges } from '@/shared/lib/dates';
 import { stableId } from '@/shared/lib/id';
-import { normalize, squish } from '@/shared/lib/text';
+import { normalize, squish, wordPattern } from '@/shared/lib/text';
 
 import type { EducationItem, LanguageProficiency } from '@/entities/resume/model/types';
 
@@ -29,16 +29,54 @@ const INSTITUTION_MARKERS = [
 ];
 
 const DEGREE_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
-  { pattern: /\bph\.?\s?d\b|\bdoctorate\b|\bаспирантура\b|\bкандидат наук\b/i, label: 'PhD' },
-  { pattern: /\bm\.?\s?sc\b|\bmaster'?s?\b|\bm\.?\s?a\b|\bмагистр\b/i, label: "Master's" },
-  { pattern: /\bmba\b/i, label: 'MBA' },
-  { pattern: /\bb\.?\s?sc\b|\bbachelor'?s?\b|\bb\.?\s?a\b|\bбакалавр\b/i, label: "Bachelor's" },
-  { pattern: /\bспециалист\b|\bspecialist degree\b/i, label: 'Specialist' },
-  { pattern: /\bassociate'?s?\b|\bсреднее специальное\b/i, label: 'Associate' },
+  {
+    pattern: wordPattern([
+      'phd',
+      'ph.d',
+      'doctorate',
+      'аспирантура',
+      'кандидат наук',
+      'доктор наук',
+    ]),
+    label: 'PhD',
+  },
+  {
+    pattern: wordPattern([
+      'msc',
+      'm.sc',
+      'master',
+      'masters',
+      "master's",
+      'ma',
+      'магистр',
+      'магистратура',
+    ]),
+    label: "Master's",
+  },
+  { pattern: wordPattern(['mba']), label: 'MBA' },
+  {
+    pattern: wordPattern([
+      'bsc',
+      'b.sc',
+      'bachelor',
+      'bachelors',
+      "bachelor's",
+      'ba',
+      'бакалавр',
+      'бакалавриат',
+    ]),
+    label: "Bachelor's",
+  },
+  { pattern: wordPattern(['специалист', 'специалитет', 'specialist degree']), label: 'Specialist' },
+  {
+    pattern: wordPattern(['associate', "associate's", 'среднее специальное', 'колледж']),
+    label: 'Associate',
+  },
 ];
 
+/** Captures the field of study named after a "Major:"-style label. */
 const FIELD_MARKERS =
-  /\b(?:major|faculty|specialt?y|field of study|специальность|факультет|направление|кафедра)\b\s*[:–-]?\s*(.+)/i;
+  /(?<![\p{L}\p{N}])(?:major|faculty|specialt?y|field of study|специальность|факультет|направление|кафедра)(?![\p{L}\p{N}])\s*[:\u2013-]?\s*(.+)/iu;
 
 export function parseEducation(sectionText: string, sectionOffset: number): EducationItem[] {
   const blocks = splitBlocks(sectionText, sectionOffset);
@@ -74,8 +112,22 @@ export function parseEducation(sectionText: string, sectionOffset: number): Educ
     .filter((item): item is EducationItem => item !== null);
 }
 
-const CERTIFICATE_LINE =
-  /\b(?:certified|certificate|certification|coursera|udemy|udacity|pluralsight|aws certified|microsoft certified|google cloud certified|сертификат|удостоверение)\b/i;
+const CERTIFICATE_LINE = wordPattern([
+  'certified',
+  'certificate',
+  'certification',
+  'coursera',
+  'udemy',
+  'udacity',
+  'pluralsight',
+  'aws certified',
+  'microsoft certified',
+  'google cloud certified',
+  'сертификат',
+  'сертификация',
+  'удостоверение',
+  'свидетельство',
+]);
 
 export function parseCertifications(sectionText: string): string[] {
   return sectionText
@@ -87,8 +139,24 @@ export function parseCertifications(sectionText: string): string[] {
 }
 
 const CEFR_RE = /\b([ABC][12])\b/;
-const LEVEL_WORDS =
-  /\b(native|fluent|advanced|upper[- ]intermediate|intermediate|pre[- ]intermediate|elementary|basic|beginner|родной|свободный|продвинутый|средний|базовый|начальный)\b/i;
+const LEVEL_WORDS = wordPattern([
+  'native',
+  'fluent',
+  'advanced',
+  'upper-intermediate',
+  'upper intermediate',
+  'intermediate',
+  'pre-intermediate',
+  'elementary',
+  'basic',
+  'beginner',
+  'родной',
+  'свободный',
+  'продвинутый',
+  'средний',
+  'базовый',
+  'начальный',
+]);
 
 const LANGUAGE_NAMES: Record<string, string> = {
   english: 'English',
@@ -134,7 +202,7 @@ export function parseLanguages(sectionText: string, sectionOffset: number): Lang
       if (found.has(canonical)) continue;
 
       const cefr = CEFR_RE.exec(line)?.[1] ?? null;
-      const word = LEVEL_WORDS.exec(line)?.[1] ?? null;
+      const word = LEVEL_WORDS.exec(line)?.[0] ?? null;
 
       found.set(canonical, {
         language: canonical,

@@ -1,6 +1,6 @@
 import { findDateRanges, type DateRange } from '@/shared/lib/dates';
 import { stableId } from '@/shared/lib/id';
-import { normalize, squish, wordCount } from '@/shared/lib/text';
+import { normalize, squish, wordCount, wordPattern } from '@/shared/lib/text';
 
 import type { ExperienceBullet, ExperienceItem } from '@/entities/resume/model/types';
 
@@ -108,7 +108,16 @@ const COMPANY_MARKERS = [
   'группа',
 ];
 
-const LOCATION_IN_HEADER_RE = /\b(?:remote|hybrid|on-?site|удаленно|гибрид)\b/i;
+const LOCATION_IN_HEADER_RE = wordPattern([
+  'remote',
+  'hybrid',
+  'onsite',
+  'on-site',
+  'удаленно',
+  'удалённо',
+  'гибрид',
+  'офис',
+]);
 
 const HEADER_SEPARATOR = /\s*[|•·—–]\s*|\s{3,}|\s+[-–—]\s+|,\s+/;
 

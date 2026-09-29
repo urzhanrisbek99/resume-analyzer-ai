@@ -147,3 +147,27 @@ export function uppercaseRatio(input: string): number {
   }
   return letters === 0 ? 0 : upper / letters;
 }
+
+/** Escape a literal string for safe inclusion in a regular expression. */
+export function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Word-boundary matcher that also works for Cyrillic.
+ *
+ * JavaScript's `\b` is defined over ASCII word characters only, so
+ * `/\bдата\b/` never matches: the Cyrillic letters are non-word characters and
+ * the boundary it looks for is not there. Silently, and only for the
+ * non-English half of the vocabulary -- which is the half this product cannot
+ * afford to get wrong. Unicode lookarounds give the intended behaviour.
+ */
+export function wordPattern(alternatives: readonly string[], flags = 'iu'): RegExp {
+  const body = alternatives.map(escapeRegExp).join('|');
+  return new RegExp(`(?<![\\p{L}\\p{N}])(?:${body})(?![\\p{L}\\p{N}])`, flags);
+}
+
+/** True when any of the alternatives appears in `text` as a whole word. */
+export function containsWord(text: string, alternatives: readonly string[]): boolean {
+  return wordPattern(alternatives).test(text);
+}

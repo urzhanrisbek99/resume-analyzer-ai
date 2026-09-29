@@ -1,4 +1,11 @@
-import { findSpan, normalize, squish, uppercaseRatio, wordCount } from '@/shared/lib/text';
+import {
+  findSpan,
+  normalize,
+  squish,
+  uppercaseRatio,
+  wordCount,
+  wordPattern,
+} from '@/shared/lib/text';
 
 import type {
   ContactBlock,
@@ -15,6 +22,10 @@ import type {
  * and a liability in the US, UK or EU, where recruiters are trained to discard
  * resumes carrying protected characteristics. The rule layer explains that; this
  * layer only reports what is present.
+ *
+ * Every vocabulary here goes through `wordPattern`, never through `\b`: the
+ * ASCII-only boundary silently fails on Cyrillic, which would switch off the
+ * Russian half of the detection without any visible error.
  */
 
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]*\w/g;
@@ -40,43 +51,77 @@ interface SensitivePattern {
 const SENSITIVE_PATTERNS: SensitivePattern[] = [
   {
     field: 'birthDate',
-    pattern: /\b(?:date of birth|d\.?o\.?b\.?|born(?:\s+on)?|дата рождения|день рождения)\b/i,
+    pattern: wordPattern([
+      'date of birth',
+      'dob',
+      'd.o.b.',
+      'born on',
+      'дата рождения',
+      'день рождения',
+      'год рождения',
+    ]),
   },
   {
     field: 'age',
     pattern:
-      /\b(?:age\s*[:–-]?\s*\d{2}|\d{2}\s*years?\s*old|возраст\s*[:–-]?\s*\d{2}|\d{2}\s*(?:лет|года))\b/i,
+      /(?<![\p{L}\p{N}])(?:age\s*[:–-]?\s*\d{2}|\d{2}\s*years?\s*old|возраст\s*[:–-]?\s*\d{2}|\d{2}\s*(?:лет|года))(?![\p{L}\p{N}])/iu,
   },
   {
     field: 'maritalStatus',
-    pattern:
-      /\b(?:marital status|married|single|divorced|семейное положение|женат|замужем|не женат|холост)\b/i,
+    pattern: wordPattern([
+      'marital status',
+      'married',
+      'divorced',
+      'семейное положение',
+      'женат',
+      'замужем',
+      'не женат',
+      'холост',
+      'разведен',
+    ]),
   },
   {
     field: 'gender',
-    pattern: /\b(?:gender|sex)\s*[:–-]|\bпол\s*[:–-]/i,
+    pattern: /(?<![\p{L}\p{N}])(?:gender|sex|пол)\s*[:–-]/iu,
   },
   {
     field: 'nationality',
-    pattern: /\b(?:nationality|citizenship|гражданство|национальность)\b/i,
+    pattern: wordPattern(['nationality', 'citizenship', 'гражданство', 'национальность']),
   },
   {
     field: 'religion',
-    pattern: /\b(?:religion|вероисповедание)\b/i,
+    pattern: wordPattern(['religion', 'вероисповедание', 'религия']),
   },
   {
     field: 'idNumber',
-    pattern: /\b(?:иин|инн|снилс|passport|паспорт|ssn|social security)\b/i,
+    pattern: wordPattern([
+      'ssn',
+      'social security',
+      'passport',
+      'иин',
+      'инн',
+      'снилс',
+      'паспорт',
+      'удостоверение личности',
+    ]),
   },
   {
     field: 'fullHomeAddress',
     pattern:
-      /\b(?:ул\.|улица|квартира|кв\.\s*\d|дом\s*\d|apt\.?\s*\d|apartment\s*\d|\d+\s+(?:street|st\.|avenue|ave\.|road|rd\.))\b/i,
+      /(?<![\p{L}\p{N}])(?:ул\.|улица|квартира|кв\.\s*\d|дом\s*\d|apt\.?\s*\d|apartment\s*\d|\d+\s+(?:street|st\.|avenue|ave\.|road|rd\.))/iu,
   },
   {
     field: 'salaryExpectation',
-    pattern:
-      /\b(?:salary expectation|expected salary|desired salary|желаемая зарплата|зарплатные ожидания|ожидаемый доход)\b/i,
+    pattern: wordPattern([
+      'salary expectation',
+      'salary expectations',
+      'expected salary',
+      'desired salary',
+      'желаемая зарплата',
+      'зарплатные ожидания',
+      'ожидаемый доход',
+      'ожидаемая зарплата',
+    ]),
   },
 ];
 
@@ -107,6 +152,39 @@ const LOCATION_HINTS = [
   'удаленно',
   'релокация',
 ];
+
+/** Words that make a capitalised line a job title rather than a person's name. */
+const TITLE_WORDS = [
+  'engineer',
+  'developer',
+  'manager',
+  'designer',
+  'analyst',
+  'lead',
+  'architect',
+  'consultant',
+  'specialist',
+  'разработчик',
+  'инженер',
+  'менеджер',
+  'аналитик',
+  'дизайнер',
+  'руководитель',
+];
+
+const TITLE_WORDS_RE = wordPattern(TITLE_WORDS);
+
+const HEADLINE_WORDS_RE = wordPattern([
+  ...TITLE_WORDS,
+  'scientist',
+  'qa',
+  'sre',
+  'devops',
+  'product owner',
+  'scrum master',
+  'тимлид',
+  'тестировщик',
+]);
 
 export interface ParseContactsInput {
   /** The header block, or the whole document when no header was identified. */
@@ -163,7 +241,7 @@ function findPhone(text: string): string | null {
     const index = match.index ?? 0;
     const before = text.slice(Math.max(0, index - 12), index);
     if (/[$€₽₸]\s*$/.test(before)) continue;
-    if (/\b(?:usd|eur|kzt|rub|tenge)\s*$/i.test(before)) continue;
+    if (/(?:usd|eur|kzt|rub|tenge|тенге)\s*$/i.test(before)) continue;
 
     return squish(candidate);
   }
@@ -210,10 +288,10 @@ function isPortfolioLike(url: string): boolean {
  */
 function findName(headerText: string, email: string | null): string | null {
   const candidates = headerText
-    .split('\n')
+    .split(/\n|\s+[|•·/]\s+/u)
     .map(squish)
     .filter((line) => line.length > 0)
-    .slice(0, 6);
+    .slice(0, 8);
 
   for (const line of candidates) {
     if (email && line.includes(email)) continue;
@@ -229,13 +307,7 @@ function findName(headerText: string, email: string | null): string | null {
     if (!allCapitalised) continue;
 
     // Job titles also pass the tests above; names do not contain these words.
-    if (
-      /\b(?:engineer|developer|manager|designer|analyst|lead|architect|разработчик|инженер|менеджер)\b/i.test(
-        line,
-      )
-    ) {
-      continue;
-    }
+    if (TITLE_WORDS_RE.test(line)) continue;
 
     return line;
   }
@@ -246,24 +318,18 @@ function findName(headerText: string, email: string | null): string | null {
 /** The professional headline: the title line that usually sits under the name. */
 function findHeadline(headerText: string, fullName: string | null): string | null {
   const lines = headerText
-    .split('\n')
+    .split(/\n|\s+[|•·/]\s+/u)
     .map(squish)
     .filter((line) => line.length > 0);
 
   const start = fullName ? lines.indexOf(fullName) + 1 : 0;
 
-  for (const line of lines.slice(start, start + 3)) {
+  for (const line of lines.slice(start, start + 4)) {
     if (line.length < 4 || line.length > 90) continue;
     if (/@|https?:\/\/|\+\d/.test(line)) continue;
     if (uppercaseRatio(line) > 0.85 && wordCount(line) <= 2) continue;
 
-    if (
-      /\b(?:engineer|developer|manager|designer|analyst|lead|architect|consultant|specialist|scientist|qa|sre|devops|разработчик|инженер|менеджер|аналитик|дизайнер)\b/i.test(
-        line,
-      )
-    ) {
-      return line;
-    }
+    if (HEADLINE_WORDS_RE.test(line)) return line;
   }
 
   return null;
@@ -284,7 +350,7 @@ function findLocation(headerText: string): string | null {
   const line = headerText.slice(lineStart, lineEnd);
 
   const fragment = line
-    .split(/[|•·]/)
+    .split(/[|•·]/u)
     .map(squish)
     .find((part) => normalize(part).includes(hit));
 

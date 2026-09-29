@@ -109,8 +109,20 @@ const CURRENT_MARKERS = [
   'текущее время',
 ];
 
-/** Any of the dash-ish separators a range may use, including the word forms. */
-const RANGE_SEPARATOR = /\s*(?:[-\u2010-\u2015\u2212~]|--|to\b|\u0434\u043e\b|\u043f\u043e\b)\s*/iu;
+/**
+ * Separators a range may use, including the word forms.
+ *
+ * The plain hyphen needs care: it separates a range in "2020-2022" and joins
+ * one endpoint in "2020-03". It counts as a separator when it has whitespace on
+ * either side (a numeric date never does), or when what follows is a four-digit
+ * year or a word. Typographic dashes carry no such ambiguity.
+ *
+ * The word alternatives end with a Unicode-aware boundary rather than `\b`,
+ * which is defined over ASCII word characters and therefore never matches after
+ * a Cyrillic letter.
+ */
+const RANGE_SEPARATOR =
+  /\s*(?:[\u2010-\u2015\u2212~]|--|(?<=\s)-|-(?=\s)|-(?=\s*(?:\d{4}(?!\d)|\p{L}))|(?:to|\u0434\u043e|\u043f\u043e)(?![\p{L}\p{N}]))\s*/iu;
 
 const MIN_YEAR = 1950;
 const MAX_YEAR = 2100;
@@ -127,9 +139,26 @@ function plausibleYear(value: number): boolean {
   return value >= MIN_YEAR && value <= MAX_YEAR;
 }
 
+/**
+ * "Present" in all the ways resumes write it.
+ *
+ * Abbreviations are compared with their dots removed, because `cleanToken`
+ * strips the trailing one: "н.в." arrives as "н.в" and would otherwise miss a
+ * vocabulary entry written with the final dot.
+ */
 function isCurrentMarker(input: string): boolean {
   const token = cleanToken(input).replace(/\s+/g, ' ');
-  return CURRENT_MARKERS.some((marker) => token === marker || token.startsWith(marker));
+  const bare = token.replace(/\./g, '');
+
+  return CURRENT_MARKERS.some((marker) => {
+    const bareMarker = marker.replace(/\./g, '');
+    return (
+      token === marker ||
+      token.startsWith(marker) ||
+      bare === bareMarker ||
+      bare.startsWith(bareMarker)
+    );
+  });
 }
 
 /** Parse one endpoint of a range: "Mar 2021", "03/2021", "2021", "2021-03". */
