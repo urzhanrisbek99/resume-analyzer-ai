@@ -4,12 +4,18 @@ import { z } from 'zod';
  * Server-side environment, validated once at module load.
  *
  * The deterministic engine has no environment dependencies at all, so a missing
- * API key degrades the product rather than breaking it: `llm.enabled` is false
- * and the UI hides the suggestion layer.
+ * model key degrades the product rather than breaking it: `llmConfig().enabled`
+ * is false and the UI hides the suggestion layer.
+ *
+ * Variable names are vendor-neutral on purpose. Which provider backs
+ * `LLM_PROVIDER` is a deployment decision, and no other part of the codebase
+ * needs to know the answer.
  */
 const serverEnvSchema = z.object({
-  ANTHROPIC_API_KEY: z.string().min(1).optional(),
-  ANTHROPIC_MODEL: z.string().min(1).default('claude-sonnet-5'),
+  LLM_PROVIDER: z.string().min(1).optional(),
+  LLM_API_KEY: z.string().min(1).optional(),
+  // No default: a model is pinned per deployment, never guessed in code.
+  LLM_MODEL: z.string().min(1).optional(),
   LLM_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(256).max(8192).default(2048),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).max(1000).default(10),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -35,17 +41,30 @@ export function serverEnv(): ServerEnv {
   return cached;
 }
 
-export interface LlmAvailability {
-  enabled: boolean;
-  model: string;
-  maxOutputTokens: number;
-}
+export type LlmConfig =
+  | { enabled: false }
+  | {
+      enabled: true;
+      provider: string;
+      apiKey: string;
+      model: string;
+      maxOutputTokens: number;
+    };
 
-export function llmAvailability(): LlmAvailability {
+/**
+ * A key alone is not enough: the provider and the model must be named too.
+ * Half-configured is treated as disabled rather than as an error, so a
+ * deployment that simply does not use the feature starts cleanly.
+ */
+export function llmConfig(): LlmConfig {
   const env = serverEnv();
+  if (!env.LLM_API_KEY || !env.LLM_PROVIDER || !env.LLM_MODEL) return { enabled: false };
+
   return {
-    enabled: Boolean(env.ANTHROPIC_API_KEY),
-    model: env.ANTHROPIC_MODEL,
+    enabled: true,
+    provider: env.LLM_PROVIDER,
+    apiKey: env.LLM_API_KEY,
+    model: env.LLM_MODEL,
     maxOutputTokens: env.LLM_MAX_OUTPUT_TOKENS,
   };
 }
