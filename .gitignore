@@ -42,4 +42,5 @@ yarn-error.log*
 
 # never commit real resumes — only synthetic fixtures are tracked
 tests/fixtures/private/
-/pdf.worker.min.mjs
+# copied from node_modules by scripts/copy-pdf-worker.mjs on install and build
+public/pdf.worker.min.mjs
