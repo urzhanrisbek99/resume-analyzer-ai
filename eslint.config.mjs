@@ -88,7 +88,9 @@ export default tseslint.config(
         {
           default: 'disallow',
           rules: [
-            { from: 'app', allow: ['views', 'widgets', 'features', 'entities', 'shared'] },
+            // `app` covers the router files and the global stylesheet, which
+            // reference each other; it is one layer, not a set of slices.
+            { from: 'app', allow: ['app', 'views', 'widgets', 'features', 'entities', 'shared'] },
             { from: 'views', allow: ['widgets', 'features', 'entities', 'shared'] },
             { from: 'widgets', allow: ['features', 'entities', 'shared'] },
             { from: 'features', allow: ['entities', 'shared'] },
