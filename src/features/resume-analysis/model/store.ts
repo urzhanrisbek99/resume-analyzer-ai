@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { create } from 'zustand';
 
 import { UPLOAD_LIMITS } from '@/shared/config/app';
@@ -9,6 +10,7 @@ import {
   analyseResume,
   type AnalysisResult,
   type DimensionId,
+  type Finding,
   type JobContext,
 } from '@/entities/analysis';
 import { parseJobDescription } from '@/entities/job-description';
@@ -206,12 +208,23 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
   },
 }));
 
-/** Findings for the active dimension filter, in engine order. */
-export function useVisibleFindings() {
-  return useAnalysisStore((state) => {
-    const findings = state.result?.findings ?? [];
-    return state.dimensionFilter === 'all'
-      ? findings
-      : findings.filter((finding) => finding.dimension === state.dimensionFilter);
-  });
+/** Stable identity for the empty case, so the memo below can rely on it. */
+const NO_FINDINGS: readonly Finding[] = [];
+
+/**
+ * Findings for the active dimension filter, in engine order.
+ *
+ * The filtering happens in a memo rather than inside the selector. A selector
+ * that builds a new array on every call never compares equal to its previous
+ * result, so zustand re-renders, which calls the selector again: an infinite
+ * loop that surfaces as React error #185.
+ */
+export function useVisibleFindings(): readonly Finding[] {
+  const findings = useAnalysisStore((state) => state.result?.findings);
+  const filter = useAnalysisStore((state) => state.dimensionFilter);
+
+  return useMemo(() => {
+    const all = findings ?? NO_FINDINGS;
+    return filter === 'all' ? all : all.filter((finding) => finding.dimension === filter);
+  }, [findings, filter]);
 }

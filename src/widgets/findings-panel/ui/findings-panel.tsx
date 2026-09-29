@@ -12,7 +12,7 @@ import { DIMENSION_LABELS, type DimensionId, type Finding } from '@/entities/ana
 import { FindingCard } from './finding-card';
 
 export interface FindingsPanelProps {
-  findings: Finding[];
+  findings: readonly Finding[];
   /** Null when nothing is expanded. */
   selectedFindingId: string | null;
   onSelect: (findingId: string | null) => void;
