@@ -11,6 +11,8 @@ import {
   type Finding,
   type Severity,
 } from '@/entities/analysis';
+import type { ResumeDocument } from '@/entities/resume';
+import { SuggestionPanel } from '@/features/llm-suggestions';
 
 const SEVERITY_TONE: Record<Severity, Tone> = {
   critical: 'critical',
@@ -23,6 +25,10 @@ export interface FindingCardProps {
   finding: Finding;
   expanded: boolean;
   onToggle: () => void;
+  /** Needed to pull the exact lines a rewrite should work on. */
+  document: ResumeDocument;
+  seniority: 'junior' | 'middle' | 'senior' | 'lead' | 'unknown';
+  enhancementAvailable: boolean;
 }
 
 /**
@@ -33,7 +39,14 @@ export interface FindingCardProps {
  * not decoration: a candidate who understands the reason will fix the whole
  * resume, while one who is only told "add numbers" will patch one bullet.
  */
-export function FindingCard({ finding, expanded, onToggle }: FindingCardProps) {
+export function FindingCard({
+  finding,
+  expanded,
+  onToggle,
+  document,
+  seniority,
+  enhancementAvailable,
+}: FindingCardProps) {
   const tone = SEVERITY_TONE[finding.severity];
   const contentId = `finding-body-${finding.id}`;
 
@@ -95,6 +108,13 @@ export function FindingCard({ finding, expanded, onToggle }: FindingCardProps) {
                 </p>
               </div>
             ) : null}
+
+            <SuggestionPanel
+              finding={finding}
+              document={document}
+              seniority={seniority}
+              available={enhancementAvailable}
+            />
 
             <div className="text-muted mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.6875rem]">
               <span>{DIMENSION_LABELS[finding.dimension]}</span>

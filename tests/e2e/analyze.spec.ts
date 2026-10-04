@@ -98,6 +98,36 @@ test.describe('candidate analysis', () => {
   });
 });
 
+test.describe('AI suggestions', () => {
+  /*
+   * CI runs without a model key, which is the state this asserts. The
+   * deterministic report has to be complete on its own, so the rewrite action
+   * is absent rather than present and failing when pressed.
+   */
+  test('hides the rewrite action when no model is configured', async ({ page }) => {
+    await analysePastedResume(page, WEAK_RESUME);
+    await page.getByRole('button', { name: /В достижениях нет цифр/ }).click();
+
+    await expect(page.getByText('Почему это важно')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Переписать с помощью модели/ })).toHaveCount(0);
+  });
+
+  test('reports availability honestly', async ({ request }) => {
+    const response = await request.get('/api/enhance');
+    expect(response.ok()).toBe(true);
+    expect(await response.json()).toEqual({ enabled: false });
+  });
+
+  test('refuses a malformed request rather than passing it on', async ({ request }) => {
+    const response = await request.post('/api/enhance', {
+      data: { ruleId: 'x', guidance: 'y', excerpts: [] },
+    });
+
+    expect(response.status()).toBe(400);
+    expect((await response.json()).code).toBe('invalid-input');
+  });
+});
+
 test.describe('landing page', () => {
   test('links through to the analyzer', async ({ page }) => {
     await page.goto('/');

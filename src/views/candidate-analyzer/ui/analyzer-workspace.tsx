@@ -9,6 +9,7 @@ import { Card } from '@/shared/ui/card';
 import { Skeleton } from '@/shared/ui/placeholder';
 
 import { JobInput } from '@/features/jd-matching';
+import { useEnhancementAvailability } from '@/features/llm-suggestions';
 import { useAnalysisStore, useVisibleFindings } from '@/features/resume-analysis';
 import { PasteTextPanel, ResumeDropzone } from '@/features/resume-upload';
 import { FindingsPanel } from '@/widgets/findings-panel';
@@ -42,6 +43,7 @@ export function AnalyzerWorkspace() {
   const reset = useAnalysisStore((state) => state.reset);
 
   const visibleFindings = useVisibleFindings();
+  const enhancementAvailable = useEnhancementAvailability();
   const [pasting, setPasting] = useState(false);
 
   const busy = status === 'reading' || status === 'analysing';
@@ -106,6 +108,9 @@ export function AnalyzerWorkspace() {
               onSelect={selectFinding}
               dimensionFilter={dimensionFilter}
               totalFindings={result.findings.length}
+              document={document}
+              seniority={result.metrics.impliedSeniority}
+              enhancementAvailable={enhancementAvailable}
             />
 
             <ResumePreview

@@ -8,6 +8,7 @@ import { Card, CardHeader } from '@/shared/ui/card';
 import { EmptyState } from '@/shared/ui/placeholder';
 
 import { DIMENSION_LABELS, type DimensionId, type Finding } from '@/entities/analysis';
+import type { ResumeDocument } from '@/entities/resume';
 
 import { FindingCard } from './finding-card';
 
@@ -18,6 +19,9 @@ export interface FindingsPanelProps {
   onSelect: (findingId: string | null) => void;
   dimensionFilter: DimensionId | 'all';
   totalFindings: number;
+  document: ResumeDocument;
+  seniority: 'junior' | 'middle' | 'senior' | 'lead' | 'unknown';
+  enhancementAvailable: boolean;
   className?: string;
 }
 
@@ -34,6 +38,9 @@ export function FindingsPanel({
   onSelect,
   dimensionFilter,
   totalFindings,
+  document,
+  seniority,
+  enhancementAvailable,
   className,
 }: FindingsPanelProps) {
   const scopeLabel =
@@ -73,6 +80,9 @@ export function FindingsPanel({
                 finding={finding}
                 expanded={selectedFindingId === finding.id}
                 onToggle={() => onSelect(selectedFindingId === finding.id ? null : finding.id)}
+                document={document}
+                seniority={seniority}
+                enhancementAvailable={enhancementAvailable}
               />
             </li>
           ))}
