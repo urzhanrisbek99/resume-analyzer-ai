@@ -10,6 +10,7 @@ import { Meter } from '@/shared/ui/meter';
 
 import { useBatchStore, useSortedCandidates } from '@/features/batch-screening';
 import { JobInput } from '@/features/jd-matching';
+import { ShortlistExportActions } from '@/features/report-export';
 import { ResumeDropzone } from '@/features/resume-upload';
 import { CandidateRankingTable } from '@/widgets/candidate-ranking-table';
 
@@ -25,6 +26,7 @@ export function ScreeningWorkspace() {
   const status = useBatchStore((state) => state.status);
   const jobText = useBatchStore((state) => state.jobText);
   const jobApplied = useBatchStore((state) => state.jobApplied);
+  const jobTitle = useBatchStore((state) => state.jobTitle);
   const failures = useBatchStore((state) => state.failures);
   const processed = useBatchStore((state) => state.processed);
   const total = useBatchStore((state) => state.total);
@@ -81,15 +83,22 @@ export function ScreeningWorkspace() {
               ? `, ${pluralize(failures.length, 'файл', 'файла', 'файлов')} не прочитано`
               : ''}
           </p>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={reset}
-            disabled={busy}
-            iconLeft={<RotateCcw className="size-4" aria-hidden="true" />}
-          >
-            Очистить список
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ShortlistExportActions
+              candidates={candidates}
+              hasJob={jobApplied}
+              jobTitle={jobTitle}
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={reset}
+              disabled={busy}
+              iconLeft={<RotateCcw className="size-4" aria-hidden="true" />}
+            >
+              Очистить список
+            </Button>
+          </div>
         </div>
       ) : null}
 

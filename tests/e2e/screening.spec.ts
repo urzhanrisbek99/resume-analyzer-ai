@@ -179,6 +179,39 @@ test.describe('recruiter screening', () => {
   });
 });
 
+test.describe('shortlist export', () => {
+  test('downloads a CSV that Excel can read', async ({ page }) => {
+    await page.goto('/recruiter');
+    await setVacancy(page, JOB_AD);
+    await uploadCandidates(page, [
+      { name: 'karimova.txt', body: MATCHING_CANDIDATE },
+      { name: 'petrov.txt', body: MISMATCHED_CANDIDATE },
+    ]);
+
+    await expect(page.getByRole('rowheader', { name: /Karimova/ })).toBeVisible({
+      timeout: 20_000,
+    });
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Выгрузить CSV' }).click(),
+    ]);
+
+    expect(download.suggestedFilename()).toMatch(/.csv$/);
+
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+    const csv = Buffer.concat(chunks).toString('utf-8');
+
+    // The byte-order mark is what stops Excel mangling Cyrillic.
+    expect(csv.charCodeAt(0)).toBe(0xfeff);
+    expect(csv).toContain('Aisha Karimova');
+    expect(csv).toContain('Ivan Petrov');
+    expect(csv).toContain('Покрытие требований');
+  });
+});
+
 test.describe('navigation', () => {
   test('moves between the two modes', async ({ page }) => {
     await page.goto('/');

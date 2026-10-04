@@ -44,6 +44,8 @@ interface BatchState {
   jobText: string;
   /** True once the current vacancy text has been scored against. */
   jobApplied: boolean;
+  /** Parsed once on apply, so the export can label the file. */
+  jobTitle: string | null;
 
   records: ParsedRecord[];
   summaries: CandidateSummary[];
@@ -68,6 +70,7 @@ const INITIAL = {
   status: 'idle' as BatchStatus,
   jobText: '',
   jobApplied: false,
+  jobTitle: null,
   records: [] as ParsedRecord[],
   summaries: [] as CandidateSummary[],
   failures: [] as CandidateFailure[],
@@ -122,6 +125,7 @@ export const useBatchStore = create<BatchState>((set, get) => ({
     set({
       summaries: summariseAll(records, job),
       jobApplied: job !== null,
+      jobTitle: job?.title ?? null,
       selectedCandidateId: null,
     });
   },
@@ -147,6 +151,7 @@ export const useBatchStore = create<BatchState>((set, get) => ({
       processed: 0,
       total: accepted.length,
       jobApplied: job !== null,
+      jobTitle: job?.title ?? null,
     });
 
     for (const [index, file] of accepted.entries()) {

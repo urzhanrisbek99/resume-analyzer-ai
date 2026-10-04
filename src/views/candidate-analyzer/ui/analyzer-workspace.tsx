@@ -10,6 +10,7 @@ import { Skeleton } from '@/shared/ui/placeholder';
 
 import { JobInput } from '@/features/jd-matching';
 import { useEnhancementAvailability } from '@/features/llm-suggestions';
+import { PrintableReport, ReportExportActions } from '@/features/report-export';
 import { useAnalysisStore, useVisibleFindings } from '@/features/resume-analysis';
 import { PasteTextPanel, ResumeDropzone } from '@/features/resume-upload';
 import { FindingsPanel } from '@/widgets/findings-panel';
@@ -56,19 +57,25 @@ export function AnalyzerWorkspace() {
   if (status === 'ready' && document && result) {
     return (
       <div className="flex flex-col gap-4">
+        {/* Hidden on screen; this is what the printer receives. */}
+        <PrintableReport document={document} result={result} />
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-secondary text-[0.8125rem]">
             <span className="font-medium">{document.file.name}</span>
             <span className="text-muted"> · разобрано за {durationMs} мс, локально</span>
           </p>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={reset}
-            iconLeft={<RotateCcw className="size-4" aria-hidden="true" />}
-          >
-            Другое резюме
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ReportExportActions document={document} result={result} />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={reset}
+              iconLeft={<RotateCcw className="size-4" aria-hidden="true" />}
+            >
+              Другое резюме
+            </Button>
+          </div>
         </div>
 
         <JobInput

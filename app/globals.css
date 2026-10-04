@@ -150,3 +150,163 @@
   border-radius: 0.125rem;
   scroll-margin-block: 6rem;
 }
+
+/*
+ * Printing.
+ *
+ * The screen view is interactive: findings collapse, panels scroll, the preview
+ * is a pane. None of that belongs in a document someone hands to a mentor or
+ * keeps for later, so printing swaps the whole page for a report rendered
+ * separately and always complete.
+ */
+.print-report {
+  display: none;
+}
+
+@media print {
+  :root {
+    --surface-page: #fff;
+    --surface-raised: #fff;
+    --surface-sunken: #fff;
+    --text-primary: #000;
+    --text-secondary: #333;
+    --text-muted: #555;
+    --border-subtle: #ccc;
+    --border-strong: #999;
+  }
+
+  /* Everything that is not the report is chrome. */
+  body > *:not(#content),
+  #content > *:not(.print-report) {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+    font-size: 10.5pt;
+  }
+
+  .print-report {
+    display: block;
+    max-width: none;
+    color: #000;
+  }
+
+  .print-header {
+    border-bottom: 2px solid #000;
+    padding-bottom: 0.6rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .print-header h1 {
+    font-size: 17pt;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .print-score {
+    font-size: 13pt;
+    margin: 0.3rem 0 0;
+  }
+
+  .print-score strong {
+    font-size: 20pt;
+  }
+
+  .print-meta {
+    font-size: 9pt;
+    color: #555;
+    margin: 0.2rem 0 0;
+  }
+
+  .print-section {
+    margin-bottom: 1.1rem;
+    /* Keep a heading with at least the start of what it introduces. */
+    break-inside: auto;
+  }
+
+  .print-section h2 {
+    font-size: 12pt;
+    font-weight: 700;
+    border-bottom: 1px solid #999;
+    padding-bottom: 0.2rem;
+    margin: 0 0 0.5rem;
+    break-after: avoid;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1px solid #ccc;
+    padding: 0.25rem 0.4rem;
+    text-align: left;
+  }
+
+  .print-table thead th {
+    background: #f0f0f0;
+    font-weight: 600;
+  }
+
+  /* A finding split across a page break is unreadable. */
+  .print-finding {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 0.8rem;
+    padding-left: 0.6rem;
+    border-left: 3px solid #999;
+  }
+
+  .print-finding h3 {
+    font-size: 10.5pt;
+    font-weight: 700;
+    margin: 0 0 0.2rem;
+  }
+
+  .print-finding p {
+    margin: 0 0 0.25rem;
+  }
+
+  .print-example {
+    background: #f6f6f6;
+    padding: 0.4rem 0.5rem;
+    margin: 0.3rem 0;
+  }
+
+  .print-before {
+    text-decoration: line-through;
+    color: #666;
+  }
+
+  .print-after::before {
+    content: '→ ';
+  }
+
+  .print-rule {
+    font-size: 8pt;
+    color: #666;
+  }
+
+  .print-footer {
+    margin-top: 1.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #ccc;
+    font-size: 8pt;
+    color: #666;
+  }
+
+  /* Printed links are useless as bare text; show where they point. */
+  a[href^='http']::after {
+    content: ' (' attr(href) ')';
+    font-size: 8pt;
+    color: #666;
+  }
+}
+
+@page {
+  margin: 14mm 12mm;
+}

@@ -57,12 +57,12 @@ test.describe('candidate analysis', () => {
     expect(value).toBeLessThanOrEqual(100);
 
     // A resume with no quantified achievements has to be told so.
-    await expect(page.getByText('В достижениях нет цифр')).toBeVisible();
+    await expect(page.getByRole('button', { name: /В достижениях нет цифр/ })).toBeVisible();
 
     // And the reason has to be one click away, not buried.
     await page.getByRole('button', { name: /В достижениях нет цифр/ }).click();
-    await expect(page.getByText('Почему это важно')).toBeVisible();
-    await expect(page.getByText('Что сделать')).toBeVisible();
+    await expect(page.getByText('Почему это важно', { exact: true })).toBeVisible();
+    await expect(page.getByText('Что сделать', { exact: true })).toBeVisible();
   });
 
   test('highlights the text a finding refers to', async ({ page }) => {
@@ -86,7 +86,7 @@ test.describe('candidate analysis', () => {
 
     // Date of birth and salary expectations both sit in this dimension.
     await expect(
-      page.getByText('Персональные данные, которые за рубежом лучше убрать'),
+      page.getByRole('button', { name: /Персональные данные, которые за рубежом лучше убрать/ }),
     ).toBeVisible();
   });
 
@@ -95,6 +95,37 @@ test.describe('candidate analysis', () => {
 
     await page.getByRole('button', { name: 'Другое резюме' }).click();
     await expect(page.getByRole('button', { name: 'Загрузить резюме' })).toBeVisible();
+  });
+});
+
+test.describe('export', () => {
+  test('downloads a Markdown report containing every finding', async ({ page }) => {
+    await analysePastedResume(page, WEAK_RESUME);
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Markdown' }).click(),
+    ]);
+
+    expect(download.suggestedFilename()).toMatch(/.md$/);
+
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+    const report = Buffer.concat(chunks).toString('utf-8');
+
+    expect(report).toContain('# Разбор резюме');
+    expect(report).toContain('В достижениях нет цифр');
+    expect(report).toContain('**Почему это важно.**');
+  });
+
+  test('offers a print view holding findings the screen has collapsed', async ({ page }) => {
+    await analysePastedResume(page, WEAK_RESUME);
+
+    // Nothing is expanded, yet the printable document carries the detail.
+    const printable = page.locator('.print-report');
+    await expect(printable).toHaveCount(1);
+    await expect(printable).toContainText('Почему это важно', { useInnerText: false });
   });
 });
 
@@ -108,7 +139,7 @@ test.describe('AI suggestions', () => {
     await analysePastedResume(page, WEAK_RESUME);
     await page.getByRole('button', { name: /В достижениях нет цифр/ }).click();
 
-    await expect(page.getByText('Почему это важно')).toBeVisible();
+    await expect(page.getByText('Почему это важно', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /Переписать с помощью модели/ })).toHaveCount(0);
   });
 
