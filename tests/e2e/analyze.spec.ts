@@ -101,7 +101,10 @@ test.describe('candidate analysis', () => {
 test.describe('landing page', () => {
   test('links through to the analyzer', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('link', { name: /Проверить резюме/ }).click();
+    await page
+      .getByRole('main')
+      .getByRole('link', { name: /Проверить резюме/ })
+      .click();
     await expect(page).toHaveURL(/\/analyze$/);
     await expect(page.getByRole('heading', { name: 'Проверка резюме' })).toBeVisible();
   });

@@ -143,7 +143,10 @@ export function AnalyzerWorkspace() {
       ) : (
         <>
           <ResumeDropzone
-            onFile={(file) => void analyseFile(file)}
+            onFiles={(files) => {
+              const [first] = files;
+              if (first) void analyseFile(first);
+            }}
             onPasteText={() => setPasting(true)}
           />
 
