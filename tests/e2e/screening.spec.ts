@@ -179,6 +179,79 @@ test.describe('recruiter screening', () => {
   });
 });
 
+test.describe('off-thread parsing', () => {
+  test('spawns workers rather than parsing on the main thread', async ({ page }) => {
+    const workers: string[] = [];
+    page.on('worker', (worker) => workers.push(worker.url()));
+
+    await page.goto('/recruiter');
+    await uploadCandidates(
+      page,
+      Array.from({ length: 6 }, (_, i) => ({
+        name: `cv-${i}.txt`,
+        body: MATCHING_CANDIDATE.replace('Aisha Karimova', `Candidate Number${i}`),
+      })),
+    );
+
+    await expect(page.getByRole('rowheader')).toHaveCount(6, { timeout: 25_000 });
+
+    // The pool is capped below the file count, so this also proves it is pooled
+    // rather than one worker per file.
+    expect(workers.length).toBeGreaterThan(0);
+    expect(workers.length).toBeLessThanOrEqual(4);
+  });
+
+  test('keeps the main thread free while a batch is parsed', async ({ page }) => {
+    await page.goto('/recruiter');
+
+    await page.evaluate(() => {
+      const scope = window as unknown as { __blockedMs: number };
+      scope.__blockedMs = 0;
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) scope.__blockedMs += entry.duration;
+      }).observe({ entryTypes: ['longtask'] });
+    });
+
+    await uploadCandidates(
+      page,
+      Array.from({ length: 12 }, (_, i) => ({
+        name: `cv-${i}.txt`,
+        body: MATCHING_CANDIDATE.replace('Aisha Karimova', `Candidate Number${i}`),
+      })),
+    );
+
+    await expect(page.getByRole('rowheader')).toHaveCount(12, { timeout: 25_000 });
+
+    /*
+     * Measured against the same batch running inline: the main thread blocks
+     * for 150-290 ms there and for essentially nothing here. The threshold is
+     * set well above the observed value so the test reports a regression rather
+     * than machine-to-machine variance.
+     */
+    const blocked = await page.evaluate(
+      () => (window as unknown as { __blockedMs: number }).__blockedMs,
+    );
+    expect(blocked).toBeLessThan(120);
+  });
+
+  test('still screens every file when the browser refuses workers', async ({ page }) => {
+    // Content-Security-Policy and a handful of embedded browsers do exactly
+    // this. A slow result is a result; a lost resume is a bug.
+    await page.addInitScript(() => {
+      Object.defineProperty(window, 'Worker', { value: undefined, configurable: true });
+    });
+
+    await page.goto('/recruiter');
+    await uploadCandidates(page, [
+      { name: 'karimova.txt', body: MATCHING_CANDIDATE },
+      { name: 'petrov.txt', body: MISMATCHED_CANDIDATE },
+    ]);
+
+    await expect(page.getByRole('rowheader')).toHaveCount(2, { timeout: 25_000 });
+    await expect(page.getByRole('rowheader', { name: /Karimova/ })).toBeVisible();
+  });
+});
+
 test.describe('shortlist export', () => {
   test('downloads a CSV that Excel can read', async ({ page }) => {
     await page.goto('/recruiter');

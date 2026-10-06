@@ -30,6 +30,7 @@ export function ScreeningWorkspace() {
   const failures = useBatchStore((state) => state.failures);
   const processed = useBatchStore((state) => state.processed);
   const total = useBatchStore((state) => state.total);
+  const offThread = useBatchStore((state) => state.offThread);
   const sort = useBatchStore((state) => state.sort);
   const selectedCandidateId = useBatchStore((state) => state.selectedCandidateId);
 
@@ -72,6 +73,11 @@ export function ScreeningWorkspace() {
             </span>
           </div>
           <Meter value={processed} max={total} tone="accent" label="Прогресс разбора" />
+          <p className="text-muted text-[0.6875rem]">
+            {offThread
+              ? 'Разбор идёт в фоновых потоках — интерфейс остаётся отзывчивым.'
+              : 'Браузер не разрешил фоновые потоки, разбор идёт в основном.'}
+          </p>
         </Card>
       ) : null}
 

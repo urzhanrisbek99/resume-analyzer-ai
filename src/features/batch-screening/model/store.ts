@@ -5,7 +5,6 @@ import { create } from 'zustand';
 
 import { UPLOAD_LIMITS } from '@/shared/config/app';
 import { stableId } from '@/shared/lib/id';
-import { toErrorMessage } from '@/shared/lib/result';
 
 import { analyseResume, type JobContext } from '@/entities/analysis';
 import {
@@ -17,9 +16,10 @@ import {
   type SortState,
 } from '@/entities/candidate';
 import { parseJobDescription } from '@/entities/job-description';
-import { buildResumeDocument, extractFromFile, type ResumeDocument } from '@/entities/resume';
+import type { ResumeDocument } from '@/entities/resume';
 
 import { summariseCandidate } from '../lib/summarise';
+import { runScreening, workersSupported } from '../lib/worker-pool';
 
 /**
  * Batch screening state.
@@ -53,6 +53,8 @@ interface BatchState {
 
   processed: number;
   total: number;
+  /** False when the browser refused workers and the main thread did the work. */
+  offThread: boolean;
 
   sort: SortState;
   selectedCandidateId: string | null;
@@ -76,6 +78,7 @@ const INITIAL = {
   failures: [] as CandidateFailure[],
   processed: 0,
   total: 0,
+  offThread: false,
   sort: DEFAULT_SORT,
   selectedCandidateId: null,
 };
@@ -108,9 +111,6 @@ function summariseAll(records: ParsedRecord[], job: JobContext | null): Candidat
   );
 }
 
-/** Hand the main thread back so progress actually paints between files. */
-const yieldToBrowser = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
-
 export const useBatchStore = create<BatchState>((set, get) => ({
   ...INITIAL,
 
@@ -131,11 +131,11 @@ export const useBatchStore = create<BatchState>((set, get) => ({
   },
 
   /**
-   * Read and score a batch.
+   * Read and score a batch, off the main thread where possible.
    *
-   * Files are processed one at a time with a yield between them. Parsing a PDF
-   * is tens of milliseconds of synchronous work; forty of them back to back
-   * freeze the tab, and the recruiter sees nothing until the end.
+   * Results are applied as they arrive rather than at the end, so the table
+   * fills in progressively. Completion order is not input order, which is fine:
+   * the shortlist is sorted by fit, never by upload sequence.
    */
   async addFiles(files) {
     const existing = get().records.length + get().failures.length;
@@ -152,75 +152,63 @@ export const useBatchStore = create<BatchState>((set, get) => ({
       total: accepted.length,
       jobApplied: job !== null,
       jobTitle: job?.title ?? null,
+      offThread: workersSupported(),
     });
 
-    for (const [index, file] of accepted.entries()) {
-      const id = stableId('cand', file.name, file.size, existing + index);
+    const inputs = await Promise.all(
+      accepted.map(async (file, index) => ({
+        id: stableId('cand', file.name, file.size, existing + index),
+        fileName: file.name,
+        bytes: await file.arrayBuffer(),
+        mimeType: file.type,
+        sizeBytes: file.size,
+      })),
+    );
 
-      try {
-        if (file.size > UPLOAD_LIMITS.maxFileBytes) {
-          throw new Error(
-            `Файл больше ${Math.round(UPLOAD_LIMITS.maxFileBytes / (1024 * 1024))} МБ`,
-          );
-        }
+    const oversized = inputs.filter((input) => input.sizeBytes > UPLOAD_LIMITS.maxFileBytes);
+    const withinLimit = inputs.filter((input) => input.sizeBytes <= UPLOAD_LIMITS.maxFileBytes);
 
-        const started = performance.now();
-        const extracted = await extractFromFile({
-          bytes: await file.arrayBuffer(),
-          fileName: file.name,
-          mimeType: file.type,
-          sizeBytes: file.size,
-        });
-
-        if (!extracted.ok) {
-          set((state) => ({
-            failures: [
-              ...state.failures,
-              {
-                id,
-                fileName: file.name,
-                message: extracted.error.message,
-                ...(extracted.error.hint ? { hint: extracted.error.hint } : {}),
-              },
-            ],
-          }));
-        } else {
-          const document = buildResumeDocument({
-            extraction: extracted.value,
-            file: { name: file.name, sizeBytes: file.size },
-            extractionMs: performance.now() - started,
-          });
-
-          const record: ParsedRecord = { id, fileName: file.name, document };
-          const summary = summariseCandidate({
-            id,
-            fileName: file.name,
-            document,
-            result: analyseResume(document, { job }),
-            job,
-          });
-
-          set((state) => ({
-            records: [...state.records, record],
-            summaries: [...state.summaries, summary],
-          }));
-        }
-      } catch (cause) {
-        set((state) => ({
-          failures: [
-            ...state.failures,
-            {
-              id,
-              fileName: file.name,
-              message: `Не удалось обработать файл: ${toErrorMessage(cause)}`,
-            },
-          ],
-        }));
-      }
-
-      set((state) => ({ processed: state.processed + 1 }));
-      await yieldToBrowser();
+    if (oversized.length > 0) {
+      const limitMb = Math.round(UPLOAD_LIMITS.maxFileBytes / (1024 * 1024));
+      set((state) => ({
+        failures: [
+          ...state.failures,
+          ...oversized.map((input) => ({
+            id: input.id,
+            fileName: input.fileName,
+            message: `Файл больше ${limitMb} МБ.`,
+            hint: 'Резюме такого размера почти всегда означает тяжёлые картинки.',
+          })),
+        ],
+        processed: state.processed + oversized.length,
+      }));
     }
+
+    await runScreening({
+      files: withinLimit,
+      job,
+      onResult: (outcome) => {
+        set((state) =>
+          outcome.status === 'ready'
+            ? {
+                records: [
+                  ...state.records,
+                  {
+                    id: outcome.summary.id,
+                    fileName: outcome.summary.fileName,
+                    document: outcome.document,
+                  },
+                ],
+                summaries: [...state.summaries, outcome.summary],
+                processed: state.processed + 1,
+              }
+            : {
+                failures: [...state.failures, outcome.failure],
+                processed: state.processed + 1,
+              },
+        );
+      },
+    });
 
     set({ status: 'ready' });
   },
