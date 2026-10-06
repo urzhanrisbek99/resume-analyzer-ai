@@ -196,6 +196,16 @@ function findHeadings(lines: IndexedLine[], typography: TypographyIndex): Headin
       return;
     }
 
+    /*
+     * The first line of a resume is the candidate's name. It is usually the
+     * boldest, largest line in the document, which is exactly what heading
+     * detection looks for -- and promoting it to a heading moves it out of the
+     * header block, the one place the name parser reads. The vocabulary check
+     * above still runs, so a document that genuinely opens with "SUMMARY" is
+     * unaffected.
+     */
+    if (i === firstContentIndex) return;
+
     if (!looksLikeHeading(text)) return;
 
     const previous = lines[i - 1];
@@ -223,8 +233,7 @@ function findHeadings(lines: IndexedLine[], typography: TypographyIndex): Headin
      * This is what makes lowercase, template-free resumes work -- headings
      * like "where i have been" carry no capitals and no vocabulary match.
      */
-    const isStructuralHeading =
-      !typography.hasSignal && i !== firstContentIndex && introducesBlock(lines, i);
+    const isStructuralHeading = !typography.hasSignal && introducesBlock(lines, i);
 
     if (!isEmphasised && !isShouted && !isStructuralHeading) return;
 

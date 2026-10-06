@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { analyseResume, assertUniqueRuleIds, ALL_RULES } from '@/entities/analysis';
 import { parseJobDescription } from '@/entities/job-description';
-import { buildResumeDocument, extractFromText } from '@/entities/resume';
+import { buildResumeDocument, extractFromText, segmentResume } from '@/entities/resume';
 
 import {
   MINIMAL_RESUME,
@@ -158,6 +158,158 @@ describe('findings are actionable', () => {
         expect(anchor.span.end).toBeGreaterThan(anchor.span.start);
       }
     }
+  });
+});
+
+describe('the header block', () => {
+  /*
+   * Regression guard. The candidate name is normally the boldest, largest line
+   * on the page, which is exactly what heading detection looks for. Promoting
+   * it to a section heading moved it out of the header block -- the one place
+   * the name parser reads -- and the report then told a named candidate that no
+   * name could be found.
+   */
+  const HEADER_RESUME = [
+    'Urzhan Rysbek',
+    '+7702-933-17-44| urzhan@example.com |',
+    'linkedin.com/in/urzhan-rysbek |',
+    '',
+    'WORK EXPERIENCE',
+    'SDU | Lecturer Assistant | Sep 2020 - January 2022',
+    '- Created reporting sheets used by 40 students',
+    '- Built dynamic presentations for report analysis',
+    '',
+    'SKILLS',
+    'JavaScript, React, SQL',
+  ].join('\n');
+
+  /** What a PDF yields: the name set bold and larger than the body text. */
+  const BOLD_NAME_LINES = [
+    {
+      text: 'Urzhan Rysbek',
+      page: 1,
+      x: 0.1,
+      y: 0.05,
+      width: 0.3,
+      fontSizeRatio: 0.03,
+      fontFamilies: ['Arial'],
+      isBold: true,
+      innerGaps: 0,
+    },
+    {
+      text: '+7702-933-17-44| urzhan@example.com |',
+      page: 1,
+      x: 0.1,
+      y: 0.09,
+      width: 0.5,
+      fontSizeRatio: 0.014,
+      fontFamilies: ['Arial'],
+      isBold: false,
+      innerGaps: 0,
+    },
+    {
+      text: 'linkedin.com/in/urzhan-rysbek |',
+      page: 1,
+      x: 0.1,
+      y: 0.12,
+      width: 0.4,
+      fontSizeRatio: 0.014,
+      fontFamilies: ['Arial'],
+      isBold: false,
+      innerGaps: 0,
+    },
+    {
+      text: 'WORK EXPERIENCE',
+      page: 1,
+      x: 0.1,
+      y: 0.18,
+      width: 0.3,
+      fontSizeRatio: 0.02,
+      fontFamilies: ['Arial'],
+      isBold: true,
+      innerGaps: 0,
+    },
+  ];
+
+  it('finds the name even when it is set like a heading', () => {
+    const segmentation = segmentResume(HEADER_RESUME, BOLD_NAME_LINES);
+    const headings = segmentation.sections
+      .map((section) => section.rawHeading)
+      .filter((heading): heading is string => heading !== null);
+
+    expect(headings).not.toContain('Urzhan Rysbek');
+
+    const document = buildResumeDocument({
+      extraction: {
+        format: 'pdf',
+        plainText: HEADER_RESUME,
+        lines: BOLD_NAME_LINES,
+        warnings: [],
+        layout: {
+          hasTextLayer: true,
+          textCharCount: HEADER_RESUME.length,
+          pageCount: 1,
+          maxColumnsPerPage: 1,
+          multiColumnPages: [],
+          tableCount: 0,
+          imageCount: 0,
+          hasLikelyPhoto: false,
+          hasHeaderFooterContent: false,
+          headerFooterSamples: [],
+          fontFamilies: ['Arial'],
+          nonStandardFonts: [],
+          hasProblematicGlyphs: false,
+          problematicGlyphSamples: [],
+          embeddedLinks: [],
+          textBoxCount: 0,
+        },
+      },
+      file: { name: 'cv.pdf', sizeBytes: HEADER_RESUME.length },
+      extractionMs: 0,
+    });
+
+    expect(document.contacts.fullName).toBe('Urzhan Rysbek');
+    expect(document.contacts.email).toBe('urzhan@example.com');
+  });
+
+  it('does not report a missing name for a resume that has one', () => {
+    const document = buildResumeDocument({
+      extraction: {
+        format: 'pdf',
+        plainText: HEADER_RESUME,
+        lines: BOLD_NAME_LINES,
+        warnings: [],
+        layout: {
+          hasTextLayer: true,
+          textCharCount: HEADER_RESUME.length,
+          pageCount: 1,
+          maxColumnsPerPage: 1,
+          multiColumnPages: [],
+          tableCount: 0,
+          imageCount: 0,
+          hasLikelyPhoto: false,
+          hasHeaderFooterContent: false,
+          headerFooterSamples: [],
+          fontFamilies: ['Arial'],
+          nonStandardFonts: [],
+          hasProblematicGlyphs: false,
+          problematicGlyphSamples: [],
+          embeddedLinks: [],
+          textBoxCount: 0,
+        },
+      },
+      file: { name: 'cv.pdf', sizeBytes: HEADER_RESUME.length },
+      extractionMs: 0,
+    });
+
+    const result = analyseResume(document, { now: new Date('2026-01-15T00:00:00.000Z') });
+    expect(ruleIds(result.findings)).not.toContain('missing-candidate-name');
+  });
+
+  it('still honours a heading the vocabulary recognises on the first line', () => {
+    const text = ['SUMMARY', 'Frontend engineer with eight years of experience.'].join('\n');
+    const sections = segmentResume(text).sections;
+    expect(sections.some((section) => section.kind === 'summary')).toBe(true);
   });
 });
 

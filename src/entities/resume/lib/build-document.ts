@@ -39,7 +39,7 @@ export function buildResumeDocument(input: BuildDocumentInput): ResumeDocument {
   const segmentation = segmentResume(plainText, lines);
   const sections = segmentation.sections;
 
-  const headerText = textOf(sections, 'contacts') || plainText.slice(0, 600);
+  const headerText = headerBlock(sections, plainText);
 
   const contacts = parseContacts({
     headerText,
@@ -112,14 +112,27 @@ export function buildResumeDocument(input: BuildDocumentInput): ResumeDocument {
   };
 }
 
-function sectionsOf(sections: ResumeSection[], kind: SectionKind): ResumeSection[] {
-  return sections.filter((section) => section.kind === kind);
+/**
+ * Everything above the first substantive section.
+ *
+ * Taken as a span of the document rather than as a section's text, because the
+ * name may itself have been read as a heading -- it is typically the largest,
+ * boldest line on the page -- and a section's `text` excludes its heading.
+ * Slicing from the start keeps the name wherever segmentation put it.
+ */
+function headerBlock(sections: ResumeSection[], plainText: string): string {
+  const body = sections.find(
+    (section) => section.kind !== 'contacts' && section.kind !== 'unknown',
+  );
+
+  const end = body ? body.span.start : Math.min(plainText.length, 600);
+  const header = plainText.slice(0, end).trim();
+
+  return header.length > 0 ? header : plainText.slice(0, 600);
 }
 
-function textOf(sections: ResumeSection[], kind: SectionKind): string {
-  return sectionsOf(sections, kind)
-    .map((section) => section.text)
-    .join('\n');
+function sectionsOf(sections: ResumeSection[], kind: SectionKind): ResumeSection[] {
+  return sections.filter((section) => section.kind === kind);
 }
 
 /**
