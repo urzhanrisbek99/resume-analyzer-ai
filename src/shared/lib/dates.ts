@@ -90,6 +90,52 @@ const MONTHS: Record<string, number> = {
   дек: 12,
   декабрь: 12,
   декабря: 12,
+  // French. International resumes are often written in the local language even
+  // when the role is not, and a month the table does not know costs the whole
+  // date -- which costs the tenure, the gaps and the progression with it.
+  janvier: 1,
+  mars: 3,
+  mai: 5,
+  fevrier: 2,
+  avril: 4,
+  juin: 6,
+  juillet: 7,
+  aout: 8,
+  septembre: 9,
+  octobre: 10,
+  novembre: 11,
+  decembre: 12,
+  // German
+  januar: 1,
+  februar: 2,
+  marz: 3,
+  juni: 6,
+  juli: 7,
+  oktober: 10,
+  dezember: 12,
+  // Spanish
+  enero: 1,
+  febrero: 2,
+  marzo: 3,
+  abril: 4,
+  mayo: 5,
+  junio: 6,
+  julio: 7,
+  agosto: 8,
+  septiembre: 9,
+  octubre: 10,
+  noviembre: 11,
+  diciembre: 12,
+  // Italian
+  gennaio: 1,
+  febbraio: 2,
+  aprile: 4,
+  maggio: 5,
+  giugno: 6,
+  luglio: 7,
+  settembre: 9,
+  ottobre: 10,
+  dicembre: 12,
 };
 
 const CURRENT_MARKERS = [
@@ -107,6 +153,17 @@ const CURRENT_MARKERS = [
   'нв',
   'сейчас',
   'текущее время',
+  // French, German, Spanish, Italian
+  "aujourd'hui",
+  'a ce jour',
+  'en cours',
+  'heute',
+  'bis heute',
+  'actualidad',
+  'la actualidad',
+  'presente',
+  'oggi',
+  'attuale',
 ];
 
 /**
@@ -127,12 +184,26 @@ const RANGE_SEPARATOR =
 const MIN_YEAR = 1950;
 const MAX_YEAR = 2100;
 
+/**
+ * Normalise an endpoint for lookup.
+ *
+ * Diacritics are stripped so the month table needs one plain entry per name
+ * rather than one per spelling: fevrier and février, marz and märz, aout and
+ * août all collapse to the same key.
+ */
 function cleanToken(input: string): string {
   return input
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/gu, '')
     .toLowerCase()
     .replace(/\u00a0/gu, ' ')
     .replace(/[.,;]+$/g, '')
     .trim();
+}
+
+/** Literal text used inside a constructed pattern. */
+function escapeForPattern(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function plausibleYear(value: number): boolean {
@@ -150,14 +221,21 @@ function isCurrentMarker(input: string): boolean {
   const token = cleanToken(input).replace(/\s+/g, ' ');
   const bare = token.replace(/\./g, '');
 
+  /*
+   * A prefix match alone is far too loose. "now, Wayfinder Logistics, lead
+   * product designer. Rebuilt the dispatch console" starts with "now", so a
+   * whole sentence of prose was read as an open-ended date, and the line above
+   * it stopped being recognised as a section heading. An endpoint is a marker
+   * plus at most a little trailing punctuation, never a clause.
+   */
+  const SLACK = 2;
+
   return CURRENT_MARKERS.some((marker) => {
     const bareMarker = marker.replace(/\./g, '');
-    return (
-      token === marker ||
-      token.startsWith(marker) ||
-      bare === bareMarker ||
-      bare.startsWith(bareMarker)
-    );
+    if (token === marker || bare === bareMarker) return true;
+
+    if (token.startsWith(marker) && token.length <= marker.length + SLACK) return true;
+    return bare.startsWith(bareMarker) && bare.length <= bareMarker.length + SLACK;
   });
 }
 
@@ -253,14 +331,33 @@ export function parseDateRange(input: string): DateRange | null {
 }
 
 /** Find every date range mentioned in a block of text, in order. */
+/**
+ * Find every date range mentioned in a block of text, in order.
+ *
+ * An endpoint is a year, a month name with a year, an ISO pair, or a numeric
+ * month before the year. That last form is the one resumes use most outside
+ * English-speaking countries, and leaving it out dropped the month from
+ * "01/2022 - Present" and lost "06/2019 - 12/2021" entirely.
+ */
 export function findDateRanges(text: string): DateRange[] {
+  const endpoint = String.raw`(?:(?:\p{L}{3,10}\.?\s+)?\d{4}(?:[-./]\d{1,2})?|\d{1,2}[-./]\d{4})`;
+  /*
+   * Built from the same vocabulary `isCurrentMarker` reads, never a second copy
+   * of it. The two had already drifted: "aujourd'hui" was recognised when a
+   * range was parsed directly but not when one was found inside a document, so
+   * every French resume lost its current role.
+   */
+  const current = CURRENT_MARKERS.map(escapeForPattern)
+    .sort((a, b) => b.length - a.length)
+    .join('|');
+
   const pattern = new RegExp(
-    String.raw`(?:\p{L}{3,10}\.?\s+)?\d{4}(?:[-.\/]\d{1,2})?` +
+    `${endpoint}` +
       String.raw`\s*(?:[-\u2010-\u2015\u2212~]|--|to|\u0434\u043e|\u043f\u043e)\s*` +
-      String.raw`(?:(?:\p{L}{3,10}\.?\s+)?\d{4}(?:[-.\/]\d{1,2})?|` +
-      String.raw`present|current|now|ongoing|настоящее время|по настоящее время|н\.в\.)`,
+      `(?:${endpoint}|${current})`,
     'giu',
   );
+
   const found: DateRange[] = [];
   for (const match of text.matchAll(pattern)) {
     const parsed = parseDateRange(match[0]);

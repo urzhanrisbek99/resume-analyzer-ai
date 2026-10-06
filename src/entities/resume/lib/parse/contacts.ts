@@ -29,8 +29,14 @@ import type {
  */
 
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]*\w/g;
-/** Deliberately loose: resumes write phone numbers a dozen ways. */
-const PHONE_RE = /(?:\+\d{1,3}[\s(-]?)?(?:\d[\s()-]?){9,14}\d/g;
+/**
+ * Deliberately loose: resumes write phone numbers a dozen ways.
+ *
+ * Separators repeat, because "(415) 555-0142" puts a bracket and a space
+ * between two digits and "+7 (999) 123-45-67" does it twice. Allowing only
+ * one separator character silently missed both.
+ */
+const PHONE_RE = /(?:\+?\d{1,3}[\s().-]{0,3})?(?:\d[\s().-]{0,3}){8,14}\d/g;
 const URL_RE =
   /(?:https?:\/\/|www\.)[^\s<>",;)\]]+|(?:[\w-]+\.)+(?:com|io|dev|me|org|net|ru|kz)\/[^\s<>",;)\]]*/gi;
 

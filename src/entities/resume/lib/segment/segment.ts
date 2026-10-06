@@ -1,6 +1,6 @@
-import { findDateRanges } from '@/shared/lib/dates';
+import { findDateRanges, parseDateRange } from '@/shared/lib/dates';
 import { stableId } from '@/shared/lib/id';
-import { normalize, squish, uppercaseRatio, wordCount } from '@/shared/lib/text';
+import { normalize, squish, uppercaseRatio, wordCount, wordPattern } from '@/shared/lib/text';
 
 import type { ResumeSection, SectionKind } from '@/entities/resume/model/types';
 
@@ -233,9 +233,13 @@ function findHeadings(lines: IndexedLine[], typography: TypographyIndex): Headin
      * This is what makes lowercase, template-free resumes work -- headings
      * like "where i have been" carry no capitals and no vocabulary match.
      */
-    const isStructuralHeading = !typography.hasSignal && introducesBlock(lines, i);
+    const isStructuralHeading =
+      !typography.hasSignal && introducesBlock(lines, i) && !looksLikeJobHeader(text, lines, i);
 
     if (!isEmphasised && !isShouted && !isStructuralHeading) return;
+
+    // A bold or capitalised job title is still a job title.
+    if ((isEmphasised || isShouted) && looksLikeJobHeader(text, lines, i)) return;
 
     const confidence = isEmphasised ? 0.6 : isShouted ? 0.5 : 0.45;
     hits.push({ line, kind: 'unknown', confidence });
@@ -244,9 +248,73 @@ function findHeadings(lines: IndexedLine[], typography: TypographyIndex): Headin
   return dropSpuriousHeadings(hits);
 }
 
+/**
+ * Job titles that have been mistaken for section headings.
+ *
+ * "Staff Software Engineer, Razorpay, Bangalore" is short, sits after a blank
+ * line and introduces a block -- every structural signal a heading has. Reading
+ * it as one empties the experience section and turns each job into its own
+ * orphan section, which is how a two-job resume came out with zero.
+ *
+ * Two signals separate them. A job header names a role, and it is followed by
+ * its dates on the next line. A section heading does neither.
+ */
+function looksLikeJobHeader(text: string, lines: IndexedLine[], index: number): boolean {
+  if (JOB_TITLE_RE.test(text)) return true;
+
+  const next = lines.slice(index + 1).find((line) => !line.isBlank);
+  if (!next) return false;
+
+  // A line that is nothing but a period belongs to the entry above it.
+  const nextText = squish(next.text);
+  const parsed = parseDateRange(nextText);
+  return parsed !== null && parsed.rawText.length >= nextText.length - 2;
+}
+
+const JOB_TITLE_RE = wordPattern([
+  'engineer',
+  'developer',
+  'programmer',
+  'architect',
+  'designer',
+  'analyst',
+  'manager',
+  'director',
+  'consultant',
+  'specialist',
+  'scientist',
+  'administrator',
+  'lead',
+  'head',
+  'intern',
+  'founder',
+  'owner',
+  'devops',
+  'sre',
+  'qa',
+  'tester',
+  'разработчик',
+  'инженер',
+  'менеджер',
+  'аналитик',
+  'дизайнер',
+  'руководитель',
+  'тимлид',
+  'стажер',
+  'стажёр',
+  'тестировщик',
+  'архитектор',
+  'директор',
+]);
+
 /** Minimum body a structural heading must introduce to be believable. */
 const MIN_BLOCK_LINES = 2;
-const MIN_BLOCK_WORDS = 12;
+/**
+ * A single short line is enough body for a heading to introduce, because a
+ * section can legitimately hold one: "Where I studied" over one university
+ * line. The job-header guard is what keeps this from swallowing job titles.
+ */
+const MIN_BLOCK_WORDS = 6;
 
 /**
  * Whether the lines below `index` form a block substantial enough to be a
@@ -386,7 +454,14 @@ export function inferKind(text: string): KindInference | null {
   if (blockWords === 0) return null;
 
   const dateRanges = findDateRanges(text);
-  const hits = (keywords: string[]) => keywords.filter((k) => lower.includes(k)).length;
+
+  // "B.Sc." and "BSc" are the same credential, and resumes use both. Comparing
+  // without the dots keeps one entry per qualification instead of four.
+  const flat = lower.replace(/\./g, '');
+  const hits = (keywords: readonly string[]) =>
+    keywords.filter(
+      (keyword) => lower.includes(keyword) || flat.includes(keyword.replace(/\./g, '')),
+    ).length;
 
   if (hits(LANGUAGE_NAMES) >= 2 && (CEFR_RE.test(text) || blockWords < 40)) {
     return { kind: 'languages', confidence: 0.8 };
@@ -400,7 +475,19 @@ export function inferKind(text: string): KindInference | null {
   if (degreeHits >= 2) return { kind: 'education', confidence: 0.8 };
 
   const bulletCount = (text.match(/^\s*[•·◦‣⁃*-]\s+/gmu) ?? []).length;
-  if (dateRanges.length >= 1 && (bulletCount >= 1 || blockWords > 40)) {
+
+  /*
+   * A dated block with a sentence or more behind it is a job entry. The bar was
+   * forty words, which a three-line entry written as prose does not clear --
+   * such blocks fell through to the skills branch below, because prose has
+   * commas in it, and an entire employment history was read as a list of
+   * technologies.
+   */
+  // An entry that opens with its own dates needs less text to be believable:
+  // "2016 to 2019, freelance. interfaces for small operators." is a job.
+  const opensWithDate = findDateRanges(text.slice(0, 40)).length > 0;
+
+  if (dateRanges.length >= 1 && (bulletCount >= 1 || blockWords >= 14 || opensWithDate)) {
     return { kind: 'experience', confidence: dateRanges.length >= 2 ? 0.85 : 0.7 };
   }
 
@@ -408,10 +495,21 @@ export function inferKind(text: string): KindInference | null {
     return { kind: 'education', confidence: 0.65 };
   }
 
-  // A skills block is a dense list: many separators, few verbs, short overall.
+  /*
+   * A skills block is a dense list of short items. Counting separators alone is
+   * not enough -- prose is full of commas too. What separates them is the length
+   * of what sits between the separators: "TypeScript, React, Jest" has short
+   * items and a paragraph does not. A skills list also carries no dates.
+   */
   const separators = (text.match(/[,;|•·]|\s{3,}/gu) ?? []).length;
-  if (separators >= 4 && blockWords < 140 && separators / blockWords > 0.12) {
-    return { kind: 'skills', confidence: 0.7 };
+  if (separators >= 4 && blockWords < 140 && dateRanges.length === 0) {
+    const items = text
+      .split(/[,;|•·\n]|\s{3,}/u)
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+
+    const averageWords = items.length === 0 ? 99 : blockWords / items.length;
+    if (averageWords <= 4) return { kind: 'skills', confidence: 0.7 };
   }
 
   if (CONTACT_RE.test(text) && blockWords < 40) {

@@ -148,7 +148,22 @@ export function parseExperience(sectionText: string, sectionOffset: number): Exp
     const endLine = nextAnchor ? nextAnchor.headerStart - 1 : lines.length - 1;
 
     const entryLines = lines.slice(startLine, endLine + 1).filter((line) => !line.isBlank);
-    const headerLines = entryLines.filter((line) => !line.isBullet).slice(0, 3);
+
+    /*
+     * The header runs from the start of the entry through the line carrying its
+     * dates, and no further. Taking a fixed three lines instead swallowed the
+     * achievements of any entry written as prose -- all of its lines counted as
+     * header, so the engine saw an employment history with nothing in it and
+     * reported no measurable results on a resume full of them.
+     */
+    const headerEnd = Math.max(0, anchor.dateLine - startLine);
+    const headerStarts = new Set(
+      lines
+        .slice(startLine, startLine + headerEnd + 1)
+        .filter((line) => !line.isBlank && !line.isBullet)
+        .map((line) => line.start),
+    );
+    const headerLines = entryLines.filter((line) => headerStarts.has(line.start));
     const header = parseHeader(headerLines, anchor.dateRange);
 
     const bullets = collectBullets(entryLines, headerLines);
@@ -194,6 +209,8 @@ interface Anchor {
   dateRange: DateRange;
   /** Index of the first line belonging to this entry. */
   headerStart: number;
+  /** Index of the line carrying the dates; the header ends here. */
+  dateLine: number;
 }
 
 /**
@@ -218,7 +235,7 @@ function findAnchors(lines: IndexedSectionLine[]): Anchor[] {
       headerStart = back;
     }
 
-    anchors.push({ dateRange: line.dateRange, headerStart });
+    anchors.push({ dateRange: line.dateRange, headerStart, dateLine: index });
   });
 
   return anchors;

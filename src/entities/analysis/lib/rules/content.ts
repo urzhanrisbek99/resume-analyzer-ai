@@ -25,6 +25,31 @@ const MAX_EXAMPLES = 4;
 
 export const contentRules: Rule[] = [
   {
+    id: 'no-achievements-found',
+    dimension: 'content',
+    severity: 'critical',
+    penalty: 100,
+    title: 'Из резюме не удалось извлечь ни одного достижения',
+    why: 'Содержание — то, по чему принимают решение. Если достижения не читаются автоматически, их не прочитает и система отбора: в анкете кандидата останется пустое поле, а рекрутеру будет не на что смотреть.',
+    fix: 'Опишите каждое место работы списком из 3–5 пунктов: что сделали и что изменилось. Укажите периоды работы — без них разбор не находит границ между местами.',
+    evaluate: ({ resume, metrics }) => {
+      if (metrics.bullets.total > 0) return pass();
+
+      /*
+       * Scored, never skipped. Skipping would leave the content dimension with
+       * almost no rules running and a near-perfect score -- an empty resume
+       * outscoring a good one, because there was nothing in it to criticise.
+       */
+      return fail({
+        detail:
+          resume.experience.length === 0
+            ? 'Места работы не распознаны, достижений нет.'
+            : `Мест работы: ${resume.experience.length}, но ни одного описанного результата.`,
+      });
+    },
+  },
+
+  {
     id: 'bullets-not-quantified',
     dimension: 'content',
     severity: 'critical',
