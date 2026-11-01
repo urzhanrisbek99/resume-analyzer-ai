@@ -7,7 +7,7 @@
  * application code stays as it is -- the gap exists only when the library is
  * driven from Node, which happens in these tests and nowhere else.
  *
- * `vitest.config.ts` resolves pdf.js to its legacy build for the same reason.
+ * `vitest.config.mts` resolves pdf.js to its legacy build for the same reason.
  */
 if (typeof (Promise as { withResolvers?: unknown }).withResolvers !== 'function') {
   Object.defineProperty(Promise, 'withResolvers', {

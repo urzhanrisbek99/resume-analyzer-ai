@@ -7,19 +7,24 @@ const r = (p: string) => resolve(import.meta.dirname, p);
 /**
  * No React plugin here on purpose.
  *
- * `@vitejs/plugin-react` pulls in its own Vite (currently the rolldown build),
- * whose plugin types no longer match the Vite that Vitest resolves. Tests need
- * nothing the plugin provides except the JSX transform -- no fast refresh, no
- * HMR -- so esbuild handles JSX directly and the version conflict disappears.
+ * `@vitejs/plugin-react` pulls in its own Vite, whose plugin types no longer
+ * match the Vite that Vitest resolves. Tests need nothing the plugin provides
+ * except the JSX transform -- no fast refresh, no HMR -- so the bundler's own
+ * transformer handles JSX and the version conflict disappears.
+ *
+ * The file is `.mts` because it is ESM: loaded as CommonJS, the import syntax
+ * is a warning today and an error in a coming major.
  *
  * The default environment is `node`: the scoring engine is pure TypeScript and
  * running it inside a simulated browser would only make the suite slower. Files
  * that genuinely need a DOM opt in with `@vitest-environment happy-dom`.
  */
 export default defineConfig({
-  esbuild: {
-    jsx: 'automatic',
-    jsxImportSource: 'react',
+  oxc: {
+    jsx: {
+      runtime: 'automatic',
+      importSource: 'react',
+    },
   },
   resolve: {
     alias: [

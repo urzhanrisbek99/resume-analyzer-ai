@@ -35,8 +35,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"**/*.{ts,tsx,mjs,css,md,json}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,mjs,css,md,json}\"",
+    "format": "prettier --write \"**/*.{ts,tsx,mts,mjs,css,md,json}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,mts,mjs,css,md,json}\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -57,6 +57,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@eslint/eslintrc": "^3.3.1",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
@@ -65,15 +66,15 @@
     "@types/node": "^24.0.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/coverage-v8": "^5.0.5",
     "eslint": "^9.39.0",
     "eslint-config-next": "^16.3.6",
     "eslint-plugin-boundaries": "^7.2.0",
-    "happy-dom": "^20.14.5",
+    "happy-dom": "^21.0.4",
     "prettier": "^3.9.9",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.70.1",
-    "vitest": "^3.2.4"
+    "vitest": "^5.0.5"
   }
 }
