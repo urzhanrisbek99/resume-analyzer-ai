@@ -22,17 +22,30 @@ export default defineConfig({
     jsxImportSource: 'react',
   },
   resolve: {
-    alias: {
-      '@/views': r('./src/views'),
-      '@/widgets': r('./src/widgets'),
-      '@/features': r('./src/features'),
-      '@/entities': r('./src/entities'),
-      '@/shared': r('./src/shared'),
-      '@/tests': r('./tests'),
-    },
+    alias: [
+      { find: '@/views', replacement: r('./src/views') },
+      { find: '@/widgets', replacement: r('./src/widgets') },
+      { find: '@/features', replacement: r('./src/features') },
+      { find: '@/entities', replacement: r('./src/entities') },
+      { find: '@/shared', replacement: r('./src/shared') },
+      { find: '@/tests', replacement: r('./tests') },
+
+      /*
+       * pdf.js ships a legacy build for runtimes without the newest language
+       * features, and Node 20 is one: the modern build reaches for iterator
+       * helpers and `Promise.withResolvers`, both of which arrived in Node 22.
+       * Browsers have had both for far longer, so the application imports the
+       * modern build and only the tests resolve elsewhere.
+       *
+       * Anchored, because a plain string alias matches by prefix and would
+       * rewrite `pdfjs-dist/legacy/...` into a path inside itself.
+       */
+      { find: /^pdfjs-dist$/, replacement: r('./node_modules/pdfjs-dist/legacy/build/pdf.mjs') },
+    ],
   },
   test: {
     environment: 'node',
+    setupFiles: ['./tests/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}', 'tests/unit/**/*.test.{ts,tsx}'],
     exclude: ['tests/e2e/**', 'node_modules/**'],
     coverage: {

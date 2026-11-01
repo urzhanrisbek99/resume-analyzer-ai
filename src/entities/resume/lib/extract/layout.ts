@@ -57,13 +57,25 @@ const GUTTER_SEARCH_MAX = 0.78;
 /** A gutter is only real if both sides carry a meaningful share of the lines. */
 const MIN_SIDE_SHARE = 0.2;
 
+/**
+ * The occupied ranges of a line, as the pieces a reader sees.
+ *
+ * Side-by-side columns are often set on shared baselines, so one visual line
+ * carries text from both of them. Measured as a single box, such a line covers
+ * the gutter and hides it; measured as spans, the gutter stays visible.
+ */
+function lineSpans(line: PositionedLine): readonly { x: number; width: number }[] {
+  return line.spans && line.spans.length > 0 ? line.spans : [{ x: line.x, width: line.width }];
+}
+
 function countColumns(pageLines: PositionedLine[]): number {
   const samples = Math.round(1 / SAMPLE_STEP);
   const coverage = new Array<number>(samples).fill(0);
+  const spans = pageLines.flatMap(lineSpans);
 
-  for (const line of pageLines) {
-    const from = Math.max(0, Math.floor(line.x / SAMPLE_STEP));
-    const to = Math.min(samples - 1, Math.ceil((line.x + line.width) / SAMPLE_STEP));
+  for (const span of spans) {
+    const from = Math.max(0, Math.floor(span.x / SAMPLE_STEP));
+    const to = Math.min(samples - 1, Math.ceil((span.x + span.width) / SAMPLE_STEP));
     for (let i = from; i <= to; i += 1) coverage[i] = (coverage[i] ?? 0) + 1;
   }
 
@@ -86,9 +98,9 @@ function countColumns(pageLines: PositionedLine[]): number {
     if (to - from < MIN_GUTTER_WIDTH) continue;
     if (to < GUTTER_SEARCH_MIN || from > GUTTER_SEARCH_MAX) continue;
 
-    const left = pageLines.filter((line) => line.x + line.width <= from).length;
-    const right = pageLines.filter((line) => line.x >= to).length;
-    const total = pageLines.length;
+    const left = spans.filter((span) => span.x + span.width <= from).length;
+    const right = spans.filter((span) => span.x >= to).length;
+    const total = spans.length;
     if (left / total >= MIN_SIDE_SHARE && right / total >= MIN_SIDE_SHARE) {
       columns = Math.max(columns, 2);
     }
@@ -163,11 +175,24 @@ export function countTabularRows(lines: PositionedLine[]): number {
   return lines.filter((line) => line.innerGaps >= 2).length;
 }
 
+/**
+ * CSS keywords, not typefaces. A PDF reader falls back to one of these when the
+ * real font name is unavailable, and reporting "sans-serif" as a non-standard
+ * font would accuse every such file of a problem it does not have.
+ */
+const GENERIC_FAMILIES = new Set(['sans-serif', 'serif', 'monospace', 'cursive', 'fantasy']);
+
 export function collectFontIssues(fontFamilies: Iterable<string>): {
   fontFamilies: string[];
   nonStandardFonts: string[];
 } {
-  const families = [...new Set([...fontFamilies].map((f) => squish(f)).filter(Boolean))];
+  const families = [
+    ...new Set(
+      [...fontFamilies]
+        .map((f) => squish(f))
+        .filter((f) => f.length > 0 && !GENERIC_FAMILIES.has(normalize(f))),
+    ),
+  ];
   const nonStandard = families.filter((family) => {
     const key = normalize(family).replace(/[^a-z ]/g, '');
     return !SAFE_FONT_KEYWORDS.some((safe) => key.includes(safe));

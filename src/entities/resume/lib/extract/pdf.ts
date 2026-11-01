@@ -13,6 +13,7 @@ import {
   type ExtractInput,
   type PositionedLine,
   type RawExtraction,
+  type TextSpan,
 } from './types';
 
 /**
@@ -40,17 +41,46 @@ interface TextRun {
   y: number;
   width: number;
   height: number;
-  fontName: string;
+  font: FontDescriptor;
 }
+
+/** What a line needs to know about the font it is set in. */
+interface FontDescriptor {
+  family: string;
+  bold: boolean;
+}
+
+/**
+ * The page's font registry.
+ *
+ * `getTextContent` reports an internal font id ("g_d0_f1") and a generic CSS
+ * fallback family ("sans-serif"), neither of which says whether the text is
+ * bold or which typeface it is actually set in. The registry behind the
+ * operator list does, and it is keyed by that same id. pdf.js does not type
+ * the store, so the shape is declared here.
+ */
+interface FontRegistry {
+  has(id: string): boolean;
+  get(id: string): { name?: unknown; bold?: unknown; black?: unknown } | undefined;
+}
+
+const BOLD_NAME = /bold|black|heavy|semib/i;
 
 let workerConfigured = false;
 
 /**
+ * Point pdf.js at its worker, in the browser only.
+ *
  * The worker is served from `public/` (see scripts/copy-pdf-worker.mjs) rather
  * than resolved through the bundler, so the URL cannot break on a bundler bump.
+ *
+ * Outside a browser that URL resolves to nothing and every parse fails. There,
+ * the option is left alone so pdf.js falls back to running on the calling
+ * thread -- which is what makes this extractor testable, and usable from a
+ * script, without a second implementation.
  */
 function configureWorker(globalWorkerOptions: { workerSrc: string }): void {
-  if (workerConfigured) return;
+  if (workerConfigured || typeof window === 'undefined') return;
   globalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
   workerConfigured = true;
 }
@@ -89,47 +119,9 @@ export async function extractPdf({
       const pageWidth = viewport.width || 1;
       const pageHeight = viewport.height || 1;
 
-      const textContent = await page.getTextContent();
-
-      for (const style of Object.values(textContent.styles)) {
-        const family = (style as { fontFamily?: string }).fontFamily;
-        if (family) fontFamilies.add(family);
-      }
-
-      const runs: TextRun[] = [];
-      for (const item of textContent.items) {
-        // TextMarkedContent entries carry no geometry; only text items do.
-        if (!('str' in item)) continue;
-        const transform = item.transform;
-        const x = transform[4];
-        const y = transform[5];
-        if (typeof x !== 'number' || typeof y !== 'number') continue;
-        if (item.str.length === 0) continue;
-
-        runs.push({
-          text: item.str,
-          x,
-          y,
-          width: item.width,
-          height: item.height || (transform[3] ?? 0),
-          fontName: item.fontName,
-        });
-      }
-
-      lines.push(
-        ...groupRunsIntoLines(runs, pageNumber, pageWidth, pageHeight, textContent.styles),
-      );
-
-      try {
-        const annotations = await page.getAnnotations();
-        for (const annotation of annotations) {
-          const url = (annotation as { url?: string }).url;
-          if (url) embeddedLinks.add(url);
-        }
-      } catch {
-        warnings.push(`Не удалось прочитать ссылки на странице ${pageNumber}.`);
-      }
-
+      // The operator list comes first because it does double duty: it counts
+      // the images, and reading it is what fills the page's font registry.
+      let fontRegistry: FontRegistry | undefined;
       try {
         const { fnArray } = await page.getOperatorList();
         const imageOps = new Set<number>([
@@ -141,8 +133,52 @@ export async function extractPdf({
         for (const fn of fnArray) if (imageOps.has(fn)) pageImages += 1;
         imageCount += pageImages;
         if (pageNumber === 1) imagesOnFirstPage = pageImages;
+        fontRegistry = (page as unknown as { commonObjs?: FontRegistry }).commonObjs;
       } catch {
         warnings.push(`Не удалось проанализировать графику на странице ${pageNumber}.`);
+      }
+
+      const textContent = await page.getTextContent();
+      const describe = fontResolver(fontRegistry, textContent.styles);
+
+      const runs: TextRun[] = [];
+      for (const item of textContent.items) {
+        // TextMarkedContent entries carry no geometry; only text items do.
+        if (!('str' in item)) continue;
+        const transform = item.transform;
+        const x = transform[4];
+        const y = transform[5];
+        if (typeof x !== 'number' || typeof y !== 'number') continue;
+        // Whitespace-only items are pdf.js's way of writing down a positioning
+        // jump: the string is a single space and the width is the whole
+        // distance it covers. Keeping one would bury every wide gap -- the
+        // signal columns and borderless tables are detected by -- under a run
+        // of apparent text. The gap is recovered from coordinates instead.
+        if (item.str.trim().length === 0) continue;
+
+        const font = describe(item.fontName);
+        if (font.family) fontFamilies.add(font.family);
+
+        runs.push({
+          text: item.str,
+          x,
+          y,
+          width: item.width,
+          height: item.height || (transform[3] ?? 0),
+          font,
+        });
+      }
+
+      lines.push(...groupRunsIntoLines(runs, pageNumber, pageWidth, pageHeight));
+
+      try {
+        const annotations = await page.getAnnotations();
+        for (const annotation of annotations) {
+          const url = (annotation as { url?: string }).url;
+          if (url) embeddedLinks.add(url);
+        }
+      } catch {
+        warnings.push(`Не удалось прочитать ссылки на странице ${pageNumber}.`);
       }
 
       page.cleanup();
@@ -220,6 +256,63 @@ export async function extractPdf({
 }
 
 /**
+ * Resolve an internal pdf.js font id to a typeface and a weight, once per id.
+ *
+ * The registry is the good source; the text styles are the fallback for a page
+ * whose operator list could not be read, and give at least the generic family.
+ */
+function fontResolver(
+  registry: FontRegistry | undefined,
+  styles: Record<string, unknown>,
+): (id: string) => FontDescriptor {
+  const cache = new Map<string, FontDescriptor>();
+
+  return (id: string): FontDescriptor => {
+    const cached = cache.get(id);
+    if (cached) return cached;
+
+    const descriptor = fromRegistry(registry, id) ?? {
+      family: (styles[id] as { fontFamily?: string } | undefined)?.fontFamily ?? '',
+      bold: BOLD_NAME.test(id),
+    };
+    cache.set(id, descriptor);
+    return descriptor;
+  };
+}
+
+function fromRegistry(registry: FontRegistry | undefined, id: string): FontDescriptor | null {
+  if (!registry?.has(id)) return null;
+
+  let font;
+  try {
+    font = registry.get(id);
+  } catch {
+    return null;
+  }
+  if (!font) return null;
+
+  const name = typeof font.name === 'string' ? font.name : '';
+  return {
+    family: familyFromFontName(name),
+    // A font can be bold by flag or only by name, depending on how the
+    // producing application wrote the descriptor.
+    bold: font.bold === true || font.black === true || BOLD_NAME.test(name),
+  };
+}
+
+/**
+ * Turn a PostScript font name into the typeface a person would recognise:
+ * `BCDEEE+Calibri-Bold` becomes `Calibri`, `TimesNewRomanPSMT` becomes
+ * `Times New Roman PSMT`. The leading tag marks a subset and the suffix is the
+ * weight, neither of which says anything about ATS compatibility.
+ */
+function familyFromFontName(name: string): string {
+  const withoutSubsetTag = name.replace(/^[A-Z]{6}\+/, '');
+  const [base = ''] = withoutSubsetTag.split(/[-,]/, 1);
+  return squish(base.replace(/([a-z])([A-Z])/g, '$1 $2'));
+}
+
+/**
  * Group text runs into visual lines, then into a reading order.
  *
  * Runs arrive in drawing order, which for a two-column layout means the left
@@ -231,7 +324,6 @@ function groupRunsIntoLines(
   pageNumber: number,
   pageWidth: number,
   pageHeight: number,
-  styles: Record<string, unknown>,
 ): PositionedLine[] {
   if (runs.length === 0) return [];
 
@@ -256,6 +348,10 @@ function groupRunsIntoLines(
     let text = '';
     let innerGaps = 0;
     let previousEnd: number | null = null;
+    // Each wide gap closes one span and opens the next, so a line that reaches
+    // across a gutter is recorded as the two pieces a reader sees.
+    const spans: TextSpan[] = [];
+    let spanStart = first.x;
 
     for (const run of ordered) {
       if (previousEnd !== null) {
@@ -263,6 +359,8 @@ function groupRunsIntoLines(
         if (gap > wideGap) {
           innerGaps += 1;
           text += '\t';
+          spans.push({ x: spanStart / pageWidth, width: (previousEnd - spanStart) / pageWidth });
+          spanStart = run.x;
         } else if (gap > 0.5 && !text.endsWith(' ') && !run.text.startsWith(' ')) {
           text += ' ';
         }
@@ -270,13 +368,13 @@ function groupRunsIntoLines(
       text += run.text;
       previousEnd = run.x + run.width;
     }
+    spans.push({
+      x: spanStart / pageWidth,
+      width: Math.max(0, ((previousEnd ?? spanStart) - spanStart) / pageWidth),
+    });
 
     const fontFamilies = [
-      ...new Set(
-        ordered
-          .map((run) => (styles[run.fontName] as { fontFamily?: string } | undefined)?.fontFamily)
-          .filter((family): family is string => Boolean(family)),
-      ),
+      ...new Set(ordered.map((run) => run.font.family).filter((family) => family.length > 0)),
     ];
 
     const maxHeight = ordered.reduce((max, run) => Math.max(max, run.height), 0);
@@ -289,9 +387,9 @@ function groupRunsIntoLines(
       width: Math.max(0, (last.x + last.width - first.x) / pageWidth),
       fontSizeRatio: maxHeight / pageHeight,
       fontFamilies,
-      // pdf.js reports the PostScript name; the bold suffix is the usable signal.
-      isBold: ordered.some((run) => /bold|black|heavy|semib/i.test(run.fontName)),
+      isBold: ordered.some((run) => run.font.bold),
       innerGaps,
+      spans,
     };
   });
 }
