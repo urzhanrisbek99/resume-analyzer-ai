@@ -28,6 +28,7 @@ export default defineConfig({
   },
   resolve: {
     alias: [
+      { find: '@/app', replacement: r('./app') },
       { find: '@/views', replacement: r('./src/views') },
       { find: '@/widgets', replacement: r('./src/widgets') },
       { find: '@/features', replacement: r('./src/features') },
