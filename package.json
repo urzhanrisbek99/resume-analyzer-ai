@@ -3,6 +3,26 @@
   "version": "0.1.0",
   "private": true,
   "description": "ATS-aware resume analyzer with a deterministic rule engine and optional LLM enhancement. Feature-Sliced Design.",
+  "license": "MIT",
+  "author": "Urzhan Rysbek <urzhanrisbek99@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/urzhanrisbek99/resume-analyzer-ai.git"
+  },
+  "homepage": "https://github.com/urzhanrisbek99/resume-analyzer-ai#readme",
+  "bugs": {
+    "url": "https://github.com/urzhanrisbek99/resume-analyzer-ai/issues"
+  },
+  "keywords": [
+    "resume",
+    "cv",
+    "ats",
+    "applicant-tracking-system",
+    "resume-parser",
+    "recruiting",
+    "feature-sliced-design",
+    "nextjs"
+  ],
   "engines": {
     "node": ">=20.9.0"
   },
@@ -25,7 +45,6 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
-    "@tanstack/react-query": "^5.104.0",
     "clsx": "^2.1.1",
     "fflate": "^0.8.3",
     "lucide-react": "^1.48.0",
