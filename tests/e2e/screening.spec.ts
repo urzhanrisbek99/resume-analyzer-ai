@@ -60,8 +60,7 @@ State University, 2016 - 2020
 `;
 
 async function uploadCandidates(page: Page, files: Array<{ name: string; body: string }>) {
-  await page.getByLabel('Загрузить резюме кандидатов').click();
-  await page.locator('input[type="file"]').setInputFiles(
+  await page.getByLabel('Загрузить резюме кандидатов').setInputFiles(
     files.map((file) => ({
       name: file.name,
       mimeType: 'text/plain',

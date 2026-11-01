@@ -94,7 +94,7 @@ test.describe('candidate analysis', () => {
     await analysePastedResume(page, WEAK_RESUME);
 
     await page.getByRole('button', { name: 'Другое резюме' }).click();
-    await expect(page.getByRole('button', { name: 'Загрузить резюме' })).toBeVisible();
+    await expect(page.getByLabel('Загрузить резюме')).toBeAttached();
   });
 });
 
