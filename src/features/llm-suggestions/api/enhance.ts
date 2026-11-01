@@ -94,7 +94,7 @@ export async function requestSuggestions({
         ? redact(document.contacts.headline).slice(0, 120)
         : null,
       seniority,
-      language: document.language.primary === 'ru' ? 'ru' : 'en',
+      language: rewriteLanguage(document),
     },
   };
 
@@ -146,6 +146,21 @@ export async function requestSuggestions({
     }
     return err(appError('llm-failed', `Не удалось обратиться к сервису: ${toErrorMessage(cause)}`));
   }
+}
+
+/**
+ * Which language the rewrite comes back in.
+ *
+ * Not simply `primary`: a Russian CV in IT is classified as mixed, because
+ * every technology on it is spelled in Latin -- `React`, `PostgreSQL`, `CI/CD`.
+ * Reading that as English would answer a Russian candidate in English. The
+ * script of the prose decides, and the prose is whatever the minority of Latin
+ * characters is not.
+ */
+function rewriteLanguage({ language }: ResumeDocument): EnhanceRequest['context']['language'] {
+  if (language.primary === 'ru') return 'ru';
+  if (language.primary === 'mixed' && language.latinRatio < 0.5) return 'ru';
+  return 'en';
 }
 
 /** The lines a finding points at, taken from the document it was produced from. */

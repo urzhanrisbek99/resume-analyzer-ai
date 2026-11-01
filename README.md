@@ -251,7 +251,7 @@ src/
 ## Тесты
 
 ```
-npm test          # 139 тестов, плюс 56 e2e (desktop и мобильный профиль)
+npm test          # 201 тест, плюс 56 e2e (desktop и мобильный профиль)
 npm run verify    # typecheck + lint + tests
 ```
 
