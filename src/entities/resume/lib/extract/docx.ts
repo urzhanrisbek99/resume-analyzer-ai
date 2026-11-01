@@ -55,7 +55,7 @@ export async function extractDocx({
       return err(appError('extraction-failed', `Не удалось разобрать разметку «${fileName}».`));
     }
 
-    const body = doc.getElementsByTagNameNS(W_NS, 'body')[0];
+    const body = findFirst(doc, W_NS, 'body');
     if (!body) {
       return err(appError('empty-document', 'Документ не содержит текста.'));
     }
@@ -83,11 +83,9 @@ export async function extractDocx({
       );
     }
 
-    const tableCount = doc.getElementsByTagNameNS(W_NS, 'tbl').length;
-    const textBoxCount = doc.getElementsByTagNameNS(W_NS, 'txbxContent').length;
-    const imageCount =
-      doc.getElementsByTagNameNS(W_NS, 'drawing').length +
-      doc.getElementsByTagNameNS(W_NS, 'pict').length;
+    const tableCount = findAll(doc, W_NS, 'tbl').length;
+    const textBoxCount = findAll(doc, W_NS, 'txbxContent').length;
+    const imageCount = findAll(doc, W_NS, 'drawing').length + findAll(doc, W_NS, 'pict').length;
     const columnCount = maxSectionColumns(doc);
     const headerFooter = readHeaderFooter(archive);
     const pageCount =
@@ -149,6 +147,39 @@ interface DocxBlock {
   /** Cell count when the block came out of a table row. */
   cellCount: number;
   indentTwips: number;
+}
+
+/**
+ * Find descendants by namespace and local name, by walking the tree.
+ *
+ * `getElementsByTagNameNS` is the obvious call and is specified, but it is not
+ * implemented by every DOM: happy-dom returns an empty list from it while
+ * reporting the correct `namespaceURI` on each element. Walking keeps the
+ * namespace check -- so a `w:p` is still distinguished from any other `p` --
+ * without depending on an optional method.
+ *
+ * A pass over a resume-sized document is a few thousand nodes.
+ */
+function findAll(root: Element | Document, namespace: string, localName: string): Element[] {
+  const found: Element[] = [];
+  const wanted = localName === '*' ? null : localName;
+
+  const visit = (node: Element) => {
+    if (node.namespaceURI === namespace && (wanted === null || node.localName === wanted)) {
+      found.push(node);
+    }
+    for (const child of Array.from(node.children)) visit(child);
+  };
+
+  const start = 'documentElement' in root ? root.documentElement : root;
+  if (start) visit(start);
+
+  return found;
+}
+
+/** The first match, or null. */
+function findFirst(root: Element | Document, namespace: string, localName: string): Element | null {
+  return findAll(root, namespace, localName)[0] ?? null;
 }
 
 function readEntry(archive: Record<string, Uint8Array>, path: string): string | null {
@@ -215,11 +246,11 @@ function readParagraph(paragraph: Element): DocxBlock | null {
 function readTable(table: Element): DocxBlock[] {
   const rows: DocxBlock[] = [];
 
-  for (const row of Array.from(table.getElementsByTagNameNS(W_NS, 'tr'))) {
-    const cells = Array.from(row.getElementsByTagNameNS(W_NS, 'tc'));
+  for (const row of findAll(table, W_NS, 'tr')) {
+    const cells = findAll(row, W_NS, 'tc');
     const cellTexts = cells
       .map((cell) =>
-        Array.from(cell.getElementsByTagNameNS(W_NS, 'p'))
+        findAll(cell, W_NS, 'p')
           .map((p) => paragraphText(p))
           .filter((t) => t.length > 0)
           .join(' '),
@@ -245,7 +276,7 @@ function readTable(table: Element): DocxBlock[] {
 function paragraphText(paragraph: Element): string {
   let text = '';
 
-  for (const node of Array.from(paragraph.getElementsByTagNameNS(W_NS, '*'))) {
+  for (const node of findAll(paragraph, W_NS, '*')) {
     if (node.localName === 't') text += node.textContent ?? '';
     else if (node.localName === 'tab') text += '   ';
     else if (node.localName === 'br') text += ' ';
@@ -276,7 +307,7 @@ function hasBold(runProperties: Element | null): boolean {
 
 function collectFonts(doc: Document): string[] {
   const fonts = new Set<string>();
-  for (const element of Array.from(doc.getElementsByTagNameNS(W_NS, 'rFonts'))) {
+  for (const element of findAll(doc, W_NS, 'rFonts')) {
     for (const attribute of ['ascii', 'hAnsi', 'cs', 'eastAsia']) {
       const value = attributeOf(element, attribute);
       if (value) fonts.add(value);
@@ -315,7 +346,7 @@ function collectHyperlinks(archive: Record<string, Uint8Array>): string[] {
 
 function maxSectionColumns(doc: Document): number {
   let columns = 1;
-  for (const section of Array.from(doc.getElementsByTagNameNS(W_NS, 'sectPr'))) {
+  for (const section of findAll(doc, W_NS, 'sectPr')) {
     const cols = firstChildNS(section, 'cols');
     const num = attributeOf(cols, 'num');
     if (num) columns = Math.max(columns, Number(num) || 1);
@@ -336,7 +367,7 @@ function readHeaderFooter(archive: Record<string, Uint8Array>): {
     try {
       const doc = new DOMParser().parseFromString(xml, 'application/xml');
       const text = squish(
-        Array.from(doc.getElementsByTagNameNS(W_NS, 't'))
+        findAll(doc, W_NS, 't')
           .map((node) => node.textContent ?? '')
           .join(' '),
       );
@@ -356,8 +387,7 @@ function readPageCount(archive: Record<string, Uint8Array>): number | null {
   if (!xml) return null;
   try {
     const doc = new DOMParser().parseFromString(xml, 'application/xml');
-    const node =
-      doc.getElementsByTagNameNS(EP_NS, 'Pages')[0] ?? doc.getElementsByTagName('Pages')[0];
+    const node = findFirst(doc, EP_NS, 'Pages') ?? doc.getElementsByTagName('Pages')[0];
     const value = Number(node?.textContent ?? '');
     return Number.isFinite(value) && value > 0 ? value : null;
   } catch {
