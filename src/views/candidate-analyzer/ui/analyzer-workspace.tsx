@@ -2,6 +2,7 @@
 
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { Button } from '@/shared/ui/button';
 import { Callout } from '@/shared/ui/callout';
@@ -17,31 +18,43 @@ import { FindingsPanel } from '@/widgets/findings-panel';
 import { ResumePreview } from '@/widgets/resume-preview';
 import { ScoreOverview } from '@/widgets/score-overview';
 
-/**
- * The candidate workspace.
- *
- * Owns the arrangement and nothing else: every piece of state lives in the
- * analysis store, and every piece of logic lives in an entity. This file
- * decides what sits next to what, which is exactly as much as a widget should
- * know.
- */
+/** Layout of the candidate flow; state lives in the analysis store. */
 export function AnalyzerWorkspace() {
-  const status = useAnalysisStore((state) => state.status);
-  const document = useAnalysisStore((state) => state.document);
-  const result = useAnalysisStore((state) => state.result);
-  const error = useAnalysisStore((state) => state.error);
-  const durationMs = useAnalysisStore((state) => state.durationMs);
-  const jobText = useAnalysisStore((state) => state.jobText);
-  const selectedFindingId = useAnalysisStore((state) => state.selectedFindingId);
-  const dimensionFilter = useAnalysisStore((state) => state.dimensionFilter);
-
-  const analyseFile = useAnalysisStore((state) => state.analyseFile);
-  const analyseText = useAnalysisStore((state) => state.analyseText);
-  const setJobText = useAnalysisStore((state) => state.setJobText);
-  const applyJob = useAnalysisStore((state) => state.applyJob);
-  const selectFinding = useAnalysisStore((state) => state.selectFinding);
-  const setDimensionFilter = useAnalysisStore((state) => state.setDimensionFilter);
-  const reset = useAnalysisStore((state) => state.reset);
+  const {
+    status,
+    document,
+    result,
+    error,
+    durationMs,
+    jobText,
+    selectedFindingId,
+    dimensionFilter,
+    analyseFile,
+    analyseText,
+    setJobText,
+    applyJob,
+    selectFinding,
+    setDimensionFilter,
+    reset,
+  } = useAnalysisStore(
+    useShallow((state) => ({
+      status: state.status,
+      document: state.document,
+      result: state.result,
+      error: state.error,
+      durationMs: state.durationMs,
+      jobText: state.jobText,
+      selectedFindingId: state.selectedFindingId,
+      dimensionFilter: state.dimensionFilter,
+      analyseFile: state.analyseFile,
+      analyseText: state.analyseText,
+      setJobText: state.setJobText,
+      applyJob: state.applyJob,
+      selectFinding: state.selectFinding,
+      setDimensionFilter: state.setDimensionFilter,
+      reset: state.reset,
+    })),
+  );
 
   const visibleFindings = useVisibleFindings();
   const enhancementAvailable = useEnhancementAvailability();

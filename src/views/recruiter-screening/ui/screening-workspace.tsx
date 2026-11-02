@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { pluralize } from '@/shared/lib/plural';
 import { Button } from '@/shared/ui/button';
@@ -15,32 +16,49 @@ import { ResumeDropzone } from '@/features/resume-upload';
 import { CandidateRankingTable } from '@/widgets/candidate-ranking-table';
 
 /**
- * The recruiter workspace.
- *
- * The vacancy comes first here, unlike in the candidate flow. Without it the
- * shortlist can only be ordered by resume quality, which is not the question a
- * recruiter is asking -- so the input sits above the dropzone rather than
- * folded away below the results.
+ * Layout of the recruiter flow. The job input sits above the dropzone because
+ * without it candidates can only be ranked by resume quality.
  */
 export function ScreeningWorkspace() {
-  const status = useBatchStore((state) => state.status);
-  const jobText = useBatchStore((state) => state.jobText);
-  const jobApplied = useBatchStore((state) => state.jobApplied);
-  const jobTitle = useBatchStore((state) => state.jobTitle);
-  const failures = useBatchStore((state) => state.failures);
-  const processed = useBatchStore((state) => state.processed);
-  const total = useBatchStore((state) => state.total);
-  const offThread = useBatchStore((state) => state.offThread);
-  const sort = useBatchStore((state) => state.sort);
-  const selectedCandidateId = useBatchStore((state) => state.selectedCandidateId);
-
-  const setJobText = useBatchStore((state) => state.setJobText);
-  const applyJob = useBatchStore((state) => state.applyJob);
-  const addFiles = useBatchStore((state) => state.addFiles);
-  const removeCandidate = useBatchStore((state) => state.removeCandidate);
-  const toggleSort = useBatchStore((state) => state.toggleSort);
-  const selectCandidate = useBatchStore((state) => state.selectCandidate);
-  const reset = useBatchStore((state) => state.reset);
+  const {
+    status,
+    jobText,
+    jobApplied,
+    jobTitle,
+    failures,
+    processed,
+    total,
+    offThread,
+    sort,
+    selectedCandidateId,
+    setJobText,
+    applyJob,
+    addFiles,
+    removeCandidate,
+    toggleSort,
+    selectCandidate,
+    reset,
+  } = useBatchStore(
+    useShallow((state) => ({
+      status: state.status,
+      jobText: state.jobText,
+      jobApplied: state.jobApplied,
+      jobTitle: state.jobTitle,
+      failures: state.failures,
+      processed: state.processed,
+      total: state.total,
+      offThread: state.offThread,
+      sort: state.sort,
+      selectedCandidateId: state.selectedCandidateId,
+      setJobText: state.setJobText,
+      applyJob: state.applyJob,
+      addFiles: state.addFiles,
+      removeCandidate: state.removeCandidate,
+      toggleSort: state.toggleSort,
+      selectCandidate: state.selectCandidate,
+      reset: state.reset,
+    })),
+  );
 
   const candidates = useSortedCandidates();
   const busy = status === 'processing';
