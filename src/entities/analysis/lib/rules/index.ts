@@ -1,4 +1,4 @@
-import type { Rule } from '@/entities/analysis/model/types';
+import type { Rule } from '../../model/types';
 
 import { contentRules } from './content';
 import { internationalRules } from './international';

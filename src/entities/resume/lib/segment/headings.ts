@@ -1,6 +1,6 @@
 import { normalize } from '@/shared/lib/text';
 
-import type { SectionKind } from '@/entities/resume/model/types';
+import type { SectionKind } from '../../model/types';
 
 /**
  * Section heading vocabulary, RU and EN.

@@ -2,7 +2,7 @@ import { findDateRanges } from '@/shared/lib/dates';
 import { stableId } from '@/shared/lib/id';
 import { normalize, squish, wordPattern } from '@/shared/lib/text';
 
-import type { EducationItem, LanguageProficiency } from '@/entities/resume/model/types';
+import type { EducationItem, LanguageProficiency } from '../../model/types';
 
 /**
  * Education, certifications and language proficiency.

@@ -1,6 +1,6 @@
 import { formatMonths, nowYearMonth, toMonthIndex } from '@/shared/lib/dates';
 
-import { fail, pass, skip, type Rule } from '@/entities/analysis/model/types';
+import { fail, pass, skip, type Rule } from '../../model/types';
 
 import { SHORT_STINT_MONTHS } from '../metrics';
 

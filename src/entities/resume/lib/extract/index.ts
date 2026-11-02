@@ -1,7 +1,7 @@
 import { UPLOAD_LIMITS } from '@/shared/config/app';
 import { appError, err, type Result } from '@/shared/lib/result';
 
-import type { SourceFormat } from '@/entities/resume/model/types';
+import type { SourceFormat } from '../../model/types';
 
 import { extractDocx } from './docx';
 import { extractPdf } from './pdf';

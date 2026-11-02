@@ -9,7 +9,7 @@ import type {
   SectionKind,
   SkillItem,
   SourceFileMeta,
-} from '@/entities/resume/model/types';
+} from '../model/types';
 
 import type { RawExtraction } from './extract';
 import { parseContacts } from './parse/contacts';

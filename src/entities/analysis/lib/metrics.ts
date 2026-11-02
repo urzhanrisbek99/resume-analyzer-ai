@@ -8,7 +8,7 @@ import type {
   ConsistencyMetrics,
   ResumeMetrics,
   TenureMetrics,
-} from '@/entities/analysis/model/types';
+} from '../model/types';
 
 import {
   ACTION_VERBS,

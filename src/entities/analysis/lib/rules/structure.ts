@@ -3,7 +3,7 @@ import { excerpt } from '@/shared/lib/text';
 
 import type { SectionKind } from '@/entities/resume/@x/analysis';
 
-import { fail, pass, skip, type Rule, type RuleContext } from '@/entities/analysis/model/types';
+import { fail, pass, skip, type Rule, type RuleContext } from '../../model/types';
 
 /**
  * Structure: are the expected parts present, complete and in a usable order.

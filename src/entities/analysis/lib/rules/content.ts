@@ -1,6 +1,6 @@
 import { excerpt, normalize, wordPattern } from '@/shared/lib/text';
 
-import { fail, pass, skip, type Rule, type RuleFinding } from '@/entities/analysis/model/types';
+import { fail, pass, skip, type Rule, type RuleFinding } from '../../model/types';
 
 import { hasWeakOpening, isQuantified, startsWithActionVerb } from '../metrics';
 

@@ -2,11 +2,7 @@ import { stableId } from '@/shared/lib/id';
 import { canonicalizeSkill, findSkillsInText } from '@/shared/lib/skill-taxonomy';
 import { findSpan, normalize, squish, wordPattern } from '@/shared/lib/text';
 
-import type {
-  JobDescription,
-  JobSkillRequirement,
-  Seniority,
-} from '@/entities/job-description/model/types';
+import type { JobDescription, JobSkillRequirement, Seniority } from '../model/types';
 
 /**
  * Job advert parsing.

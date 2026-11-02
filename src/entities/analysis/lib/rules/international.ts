@@ -2,7 +2,7 @@ import { wordPattern } from '@/shared/lib/text';
 
 import type { SensitiveField } from '@/entities/resume/@x/analysis';
 
-import { fail, pass, skip, type Rule } from '@/entities/analysis/model/types';
+import { fail, pass, skip, type Rule } from '../../model/types';
 
 /**
  * Readiness for a foreign employer.

@@ -2,7 +2,7 @@ import { stableId } from '@/shared/lib/id';
 
 import type { ResumeDocument } from '@/entities/resume/@x/analysis';
 
-import { bandFor, DIMENSION_WEIGHTS, ENGINE_VERSION } from '@/entities/analysis/model/config';
+import { bandFor, DIMENSION_WEIGHTS, ENGINE_VERSION } from '../model/config';
 import {
   DIMENSION_IDS,
   SEVERITY_ORDER,
@@ -14,7 +14,7 @@ import {
   type Rule,
   type RuleContext,
   type Severity,
-} from '@/entities/analysis/model/types';
+} from '../model/types';
 
 import { computeMetrics } from './metrics';
 import { ALL_RULES } from './rules';

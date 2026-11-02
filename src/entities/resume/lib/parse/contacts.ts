@@ -7,12 +7,7 @@ import {
   wordPattern,
 } from '@/shared/lib/text';
 
-import type {
-  ContactBlock,
-  LinkKind,
-  ResumeLink,
-  SensitiveField,
-} from '@/entities/resume/model/types';
+import type { ContactBlock, LinkKind, ResumeLink, SensitiveField } from '../../model/types';
 
 /**
  * Contact block parsing.

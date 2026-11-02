@@ -1,6 +1,6 @@
 import { normalize } from '@/shared/lib/text';
 
-import { fail, pass, skip, type Rule } from '@/entities/analysis/model/types';
+import { fail, pass, skip, type Rule } from '../../model/types';
 
 /**
  * Keyword and job-description alignment.

@@ -1,4 +1,4 @@
-import type { ResumeDocument } from '@/entities/resume/model/types';
+import type { ResumeDocument } from '../model/types';
 
 /**
  * PII redaction.

@@ -1,6 +1,6 @@
 import { excerpt } from '@/shared/lib/text';
 
-import { fail, pass, skip, type Rule } from '@/entities/analysis/model/types';
+import { fail, pass, skip, type Rule } from '../../model/types';
 
 /**
  * Parseability: can an applicant tracking system read the file at all.

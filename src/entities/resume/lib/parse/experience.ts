@@ -2,7 +2,7 @@ import { findDateRanges, type DateRange } from '@/shared/lib/dates';
 import { stableId } from '@/shared/lib/id';
 import { normalize, squish, wordCount, wordPattern } from '@/shared/lib/text';
 
-import type { ExperienceBullet, ExperienceItem } from '@/entities/resume/model/types';
+import type { ExperienceBullet, ExperienceItem } from '../../model/types';
 
 /**
  * Experience parsing.

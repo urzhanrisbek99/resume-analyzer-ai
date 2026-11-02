@@ -1,4 +1,4 @@
-import type { CandidateSummary } from '@/entities/candidate/model/types';
+import type { CandidateSummary } from '../model/types';
 
 /**
  * Ranking.

@@ -2,7 +2,7 @@ import { findDateRanges, parseDateRange } from '@/shared/lib/dates';
 import { stableId } from '@/shared/lib/id';
 import { normalize, squish, uppercaseRatio, wordCount, wordPattern } from '@/shared/lib/text';
 
-import type { ResumeSection, SectionKind } from '@/entities/resume/model/types';
+import type { ResumeSection, SectionKind } from '../../model/types';
 
 import type { PositionedLine } from '../extract/types';
 
