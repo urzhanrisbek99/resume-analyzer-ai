@@ -1,10 +1,4 @@
-/**
- * Public API of the `resume` entity.
- *
- * Everything above this layer imports from here and nowhere else, so the
- * internal split between extraction, segmentation and parsing stays free to
- * change without touching a single consumer.
- */
+/** Public API of `resume`. */
 
 export type {
   ContactBlock,

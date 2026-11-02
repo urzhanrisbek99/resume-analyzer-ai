@@ -25,13 +25,7 @@ export interface FindingsPanelProps {
   className?: string;
 }
 
-/**
- * The findings list, in engine order: most severe first, then by cost.
- *
- * Ordering is the advice. A candidate with fifteen minutes will fix the first
- * three items and nothing else, so the first three have to be the three that
- * matter most.
- */
+/** Findings in engine order: most severe and costly first. */
 export function FindingsPanel({
   findings,
   selectedFindingId,

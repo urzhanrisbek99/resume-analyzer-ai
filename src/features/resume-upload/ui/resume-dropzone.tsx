@@ -20,18 +20,9 @@ export interface ResumeDropzoneProps {
 }
 
 /**
- * File drop target.
- *
- * Reachable by keyboard and by click, not only by drag: a drop-only zone locks
- * out anyone using a screen reader or a keyboard, and this is the single entry
- * point to the whole product.
- *
- * The control is the file input itself, wrapped in a `label`. The obvious
- * alternative -- a div with `role="button"` around a hidden input -- nests one
- * control inside another, which leaves a screen reader announcing two
- * overlapping buttons, and it reimplements Enter and Space by hand. Here the
- * browser provides the keyboard behaviour and the focus ring is drawn on the
- * label through `:has()`, so the visible focus follows the real focus.
+ * The control is a real file input wrapped in a `label`, so keyboard and
+ * screen-reader behaviour come from the browser. A `role="button"` div around
+ * a hidden input would nest two controls. Focus ring is drawn via `:has()`.
  */
 export function ResumeDropzone({
   onFiles,
@@ -45,8 +36,7 @@ export function ResumeDropzone({
   const inputId = useId();
   const hintId = `${inputId}-hint`;
   const [isDragging, setDragging] = useState(false);
-  // Drag events fire for every child element, so nesting is counted rather
-  // than toggled -- otherwise the highlight flickers as the pointer moves.
+  // Drag events fire for each child, so depth is counted to avoid flicker.
   const dragDepth = useRef(0);
 
   const handleDrop = useCallback(
@@ -124,9 +114,8 @@ export function ResumeDropzone({
           id={inputId}
           type="file"
           multiple={multiple}
-          // The name is set here rather than taken from the label's text: the
-          // visible wording is about dragging, which is not how this control is
-          // used by keyboard or by screen reader.
+          // The visible text talks about dragging, which does not describe the
+          // control for keyboard or screen-reader users.
           aria-label={multiple ? 'Загрузить резюме кандидатов' : 'Загрузить резюме'}
           aria-describedby={hintId}
           className="sr-only"

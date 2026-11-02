@@ -17,11 +17,8 @@ import {
 } from './types';
 
 /**
- * PDF extraction.
- *
- * Two jobs, and the second one is the reason this file is not three lines long:
- * recover the reading order as an ATS would, and record the physical layout
- * facts that make a PDF unparseable in the first place.
+ * PDF extraction: recovers the reading order an ATS would see and records
+ * layout facts (columns, images, fonts) that hurt parseability.
  */
 
 /** Text runs closer than this (as a share of page width) belong to one word run. */
@@ -31,7 +28,6 @@ const LINE_TOLERANCE_RATIO = 0.006;
 /** Below this many characters the document has no usable text layer. */
 const MIN_TEXT_CHARS = 120;
 
-/** Derived from the module itself, so a pdf.js upgrade surfaces as a type error. */
 type PdfjsModule = typeof import('pdfjs-dist');
 type PdfLoadingTask = ReturnType<PdfjsModule['getDocument']>;
 
@@ -44,20 +40,15 @@ interface TextRun {
   font: FontDescriptor;
 }
 
-/** What a line needs to know about the font it is set in. */
 interface FontDescriptor {
   family: string;
   bold: boolean;
 }
 
 /**
- * The page's font registry.
- *
- * `getTextContent` reports an internal font id ("g_d0_f1") and a generic CSS
- * fallback family ("sans-serif"), neither of which says whether the text is
- * bold or which typeface it is actually set in. The registry behind the
- * operator list does, and it is keyed by that same id. pdf.js does not type
- * the store, so the shape is declared here.
+ * `getTextContent` reports only an internal font id and a generic family.
+ * The registry filled by the operator list maps that id to the real typeface
+ * and weight. pdf.js leaves it untyped, so the shape is declared here.
  */
 interface FontRegistry {
   has(id: string): boolean;
@@ -69,15 +60,9 @@ const BOLD_NAME = /bold|black|heavy|semib/i;
 let workerConfigured = false;
 
 /**
- * Point pdf.js at its worker, in the browser only.
- *
- * The worker is served from `public/` (see scripts/copy-pdf-worker.mjs) rather
- * than resolved through the bundler, so the URL cannot break on a bundler bump.
- *
- * Outside a browser that URL resolves to nothing and every parse fails. There,
- * the option is left alone so pdf.js falls back to running on the calling
- * thread -- which is what makes this extractor testable, and usable from a
- * script, without a second implementation.
+ * The worker is served from `public/` (see scripts/copy-pdf-worker.mjs).
+ * Outside a browser it is left unset so pdf.js runs on the calling thread,
+ * which keeps the extractor usable in tests.
  */
 function configureWorker(globalWorkerOptions: { workerSrc: string }): void {
   if (workerConfigured || typeof window === 'undefined') return;
@@ -99,9 +84,8 @@ export async function extractPdf({
     // The loading task owns `destroy`; the document proxy only has `cleanup`.
     loadingTask = pdfjs.getDocument({
       data: new Uint8Array(bytes),
-      // No network fetches are needed to read text, and none should happen.
       useWorkerFetch: false,
-      // Keep glyph mapping faithful so ligature detection stays meaningful.
+      // Keep glyph mapping faithful so ligatures can be detected.
       disableFontFace: true,
     });
     const document = await loadingTask.promise;
@@ -119,8 +103,7 @@ export async function extractPdf({
       const pageWidth = viewport.width || 1;
       const pageHeight = viewport.height || 1;
 
-      // The operator list comes first because it does double duty: it counts
-      // the images, and reading it is what fills the page's font registry.
+      // Reading the operator list counts images and fills the font registry.
       let fontRegistry: FontRegistry | undefined;
       try {
         const { fnArray } = await page.getOperatorList();
@@ -149,11 +132,8 @@ export async function extractPdf({
         const x = transform[4];
         const y = transform[5];
         if (typeof x !== 'number' || typeof y !== 'number') continue;
-        // Whitespace-only items are pdf.js's way of writing down a positioning
-        // jump: the string is a single space and the width is the whole
-        // distance it covers. Keeping one would bury every wide gap -- the
-        // signal columns and borderless tables are detected by -- under a run
-        // of apparent text. The gap is recovered from coordinates instead.
+        // Whitespace-only items encode positioning jumps. Dropping them keeps
+        // wide gaps visible for column detection; gaps come from coordinates.
         if (item.str.trim().length === 0) continue;
 
         const font = describe(item.fontName);
@@ -216,9 +196,7 @@ export async function extractPdf({
         multiColumnPages: columns.multiColumnPages,
         tableCount: countTabularRows(bodyLines),
         imageCount,
-        // A single image on page one is the classic portrait-photo pattern. It
-        // could also be a logo, so the rule that reads this asks rather than
-        // asserts.
+        // One to three images on page one is usually a photo, possibly a logo.
         hasLikelyPhoto: imagesOnFirstPage >= 1 && imagesOnFirstPage <= 3,
         hasHeaderFooterContent: headerFooter.hasHeaderFooterContent,
         headerFooterSamples: headerFooter.samples,
@@ -250,17 +228,11 @@ export async function extractPdf({
       ),
     );
   } finally {
-    // Frees the worker, whether extraction succeeded or threw.
     await loadingTask?.destroy().catch(() => undefined);
   }
 }
 
-/**
- * Resolve an internal pdf.js font id to a typeface and a weight, once per id.
- *
- * The registry is the good source; the text styles are the fallback for a page
- * whose operator list could not be read, and give at least the generic family.
- */
+/** Falls back to the text style's generic family when the registry is unavailable. */
 function fontResolver(
   registry: FontRegistry | undefined,
   styles: Record<string, unknown>,
@@ -294,18 +266,12 @@ function fromRegistry(registry: FontRegistry | undefined, id: string): FontDescr
   const name = typeof font.name === 'string' ? font.name : '';
   return {
     family: familyFromFontName(name),
-    // A font can be bold by flag or only by name, depending on how the
-    // producing application wrote the descriptor.
+    // Fonts mark bold either by flag or only in the name.
     bold: font.bold === true || font.black === true || BOLD_NAME.test(name),
   };
 }
 
-/**
- * Turn a PostScript font name into the typeface a person would recognise:
- * `BCDEEE+Calibri-Bold` becomes `Calibri`, `TimesNewRomanPSMT` becomes
- * `Times New Roman PSMT`. The leading tag marks a subset and the suffix is the
- * weight, neither of which says anything about ATS compatibility.
- */
+/** "BCDEEE+Calibri-Bold" -> "Calibri": drops the subset tag and weight suffix. */
 function familyFromFontName(name: string): string {
   const withoutSubsetTag = name.replace(/^[A-Z]{6}\+/, '');
   const [base = ''] = withoutSubsetTag.split(/[-,]/, 1);
@@ -313,11 +279,8 @@ function familyFromFontName(name: string): string {
 }
 
 /**
- * Group text runs into visual lines, then into a reading order.
- *
- * Runs arrive in drawing order, which for a two-column layout means the left
- * column and the right column interleave. Grouping by baseline and sorting by
- * position reconstructs what a human sees.
+ * Runs arrive in drawing order, which interleaves the columns of a two-column
+ * layout. Grouping by baseline and sorting by x restores reading order.
  */
 function groupRunsIntoLines(
   runs: TextRun[],
@@ -348,8 +311,7 @@ function groupRunsIntoLines(
     let text = '';
     let innerGaps = 0;
     let previousEnd: number | null = null;
-    // Each wide gap closes one span and opens the next, so a line that reaches
-    // across a gutter is recorded as the two pieces a reader sees.
+    // A line crossing a column gutter becomes two spans, as a reader sees it.
     const spans: TextSpan[] = [];
     let spanStart = first.x;
 
@@ -394,11 +356,7 @@ function groupRunsIntoLines(
   });
 }
 
-/**
- * Flatten lines into text, inserting a blank line where the vertical gap is
- * larger than the local line height. Those breaks are what heading detection and
- * bullet grouping later rely on.
- */
+/** Inserts a blank line where the vertical gap exceeds the line height. */
 function buildPlainText(lines: PositionedLine[]): string {
   const ordered = [...lines].sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x);
 

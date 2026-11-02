@@ -2,11 +2,8 @@ import type { DateRange } from '@/shared/lib/dates';
 import type { TextSpan } from '@/shared/lib/text';
 
 /**
- * The normalised resume.
- *
- * Every downstream rule reads this structure and nothing else, which is what
- * lets the analyzer treat a template-perfect PDF and a hand-rolled one-column
- * text file identically: only the extraction strategy differs, never the model.
+ * The normalised resume. Rules read only this, so every input format is
+ * analysed the same way.
  */
 
 export type SourceFormat = 'pdf' | 'docx' | 'txt' | 'md';
@@ -18,14 +15,9 @@ export interface SourceFileMeta {
   pageCount: number;
 }
 
-/**
- * Physical facts about the document, collected during extraction.
- *
- * These drive the parseability dimension. They must be gathered while the
- * original file is open, because they are unrecoverable from plain text alone.
- */
+/** Layout facts that only exist in the original file; they drive parseability. */
 export interface LayoutEvidence {
-  /** False for image-only scans — the single most fatal ATS defect. */
+  /** False for image-only scans. */
   hasTextLayer: boolean;
   textCharCount: number;
   pageCount: number;

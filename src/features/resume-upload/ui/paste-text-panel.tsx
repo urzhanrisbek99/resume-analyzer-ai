@@ -14,14 +14,7 @@ export interface PasteTextPanelProps {
 /** Below this the text cannot carry an experience section worth scoring. */
 const MIN_CHARS = 120;
 
-/**
- * Paste-the-text fallback.
- *
- * The escape hatch for a PDF that is a scan, and the fastest path for anyone
- * who keeps their resume in a document editor. The structure and content
- * dimensions score identically from pasted text; only the layout checks, which
- * need a real file, are unavailable.
- */
+/** Paste fallback, e.g. for scanned PDFs. Layout checks need a real file and are skipped. */
 export function PasteTextPanel({ onSubmit, onCancel, disabled = false }: PasteTextPanelProps) {
   const [text, setText] = useState('');
   const fieldId = useId();

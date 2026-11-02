@@ -5,22 +5,10 @@ import { normalize, squish, wordCount, wordPattern } from '@/shared/lib/text';
 import type { ExperienceBullet, ExperienceItem } from '../../model/types';
 
 /**
- * Experience parsing.
- *
- * Resumes write a job header in at least four orders:
- *
- *   Senior Engineer | Acme Inc | Jan 2020 - Present
- *   Acme Inc
- *   Senior Engineer
- *   2020 - 2023
- *   Senior Engineer, Acme (2020-2023)
- *   2020 - 2023   Acme Inc - Senior Engineer
- *
- * Rather than pattern-match each layout, the parser anchors on date ranges --
- * the one element every job entry has -- and then decides which of the remaining
- * fragments is the title and which is the employer, using a title vocabulary.
- * When it cannot tell, it records low confidence instead of guessing silently,
- * and the rule layer reports that the header is ambiguous.
+ * Job headers come in many orders ("Title | Company | Dates", stacked lines,
+ * "Title, Company (2020-2023)"...). Entries are anchored on their date range,
+ * then the remaining fragments are told apart with a title vocabulary.
+ * Ambiguous headers get low confidence rather than a silent guess.
  */
 
 const BULLET_RE = /^\s*(?:[•·◦‣⁃▪▫⁃*+]|[-–—](?=\s))\s*/u;
@@ -131,11 +119,7 @@ interface IndexedSectionLine {
   dateRange: DateRange | null;
 }
 
-/**
- * @param sectionText text of the experience section
- * @param sectionOffset absolute offset of `sectionText` inside the document, so
- *   every span points into `ResumeDocument.plainText`
- */
+/** @param sectionOffset offset of `sectionText` in the document, so spans are absolute. */
 export function parseExperience(sectionText: string, sectionOffset: number): ExperienceItem[] {
   const lines = indexLines(sectionText, sectionOffset);
   const anchors = findAnchors(lines);
@@ -149,13 +133,8 @@ export function parseExperience(sectionText: string, sectionOffset: number): Exp
 
     const entryLines = lines.slice(startLine, endLine + 1).filter((line) => !line.isBlank);
 
-    /*
-     * The header runs from the start of the entry through the line carrying its
-     * dates, and no further. Taking a fixed three lines instead swallowed the
-     * achievements of any entry written as prose -- all of its lines counted as
-     * header, so the engine saw an employment history with nothing in it and
-     * reported no measurable results on a resume full of them.
-     */
+    // The header ends at the line with the dates. A fixed line count would
+    // swallow prose achievements into the header.
     const headerEnd = Math.max(0, anchor.dateLine - startLine);
     const headerStarts = new Set(
       lines
@@ -213,11 +192,7 @@ interface Anchor {
   dateLine: number;
 }
 
-/**
- * A job entry is anchored on its date range. When the line above the date has no
- * date of its own and reads like a title or employer, it belongs to the entry --
- * that is the stacked layout, where company, title and dates are three lines.
- */
+/** In the stacked layout, the undated title/company lines above the date join the entry. */
 function findAnchors(lines: IndexedSectionLine[]): Anchor[] {
   const anchors: Anchor[] = [];
 
@@ -264,7 +239,6 @@ function parseHeader(headerLines: IndexedSectionLine[], period: DateRange): Head
   const titleIndex = remaining.findIndex(looksLikeTitle);
   const companyIndex = remaining.findIndex(looksLikeCompany);
 
-  // Both identified, and they are different fragments: highest confidence.
   if (titleIndex !== -1 && companyIndex !== -1 && titleIndex !== companyIndex) {
     return {
       title: remaining[titleIndex] ?? null,
@@ -284,8 +258,7 @@ function parseHeader(headerLines: IndexedSectionLine[], period: DateRange): Head
     return { title, company: remaining[companyIndex] ?? null, location, confidence: 0.75 };
   }
 
-  // Neither vocabulary matched. Title-then-company is the more common order, but
-  // this is a guess and the confidence says so.
+  // Neither vocabulary matched: guess the more common title-then-company order.
   return {
     title: remaining[0] ?? null,
     company: remaining[1] ?? null,
@@ -326,12 +299,7 @@ function escape(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/**
- * Bullets are the achievement lines. When an entry uses no markers at all, its
- * non-header lines are treated as bullets so content rules still have something
- * to measure -- a marker-free resume is a formatting problem, not a reason to
- * report zero achievements.
- */
+/** Without bullet markers, non-header lines count as bullets so content rules can still run. */
 function collectBullets(
   entryLines: IndexedSectionLine[],
   headerLines: IndexedSectionLine[],
@@ -354,10 +322,7 @@ function collectBullets(
   });
 }
 
-/**
- * Fallback for an experience section with no parseable dates: treat each
- * non-bullet line that is followed by bullets as an entry header.
- */
+/** Without dates, a non-bullet line followed by bullets starts an entry. */
 function parseWithoutDates(lines: IndexedSectionLine[]): ExperienceItem[] {
   const items: ExperienceItem[] = [];
   let current: { header: IndexedSectionLine; bullets: IndexedSectionLine[] } | null = null;

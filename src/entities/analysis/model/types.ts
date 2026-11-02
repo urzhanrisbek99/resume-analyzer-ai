@@ -4,12 +4,8 @@ import type { TextSpan } from '@/shared/lib/text';
 import type { ResumeDocument } from '@/entities/resume/@x/analysis';
 
 /**
- * The analysis model.
- *
- * A finding is not a complaint. It says what was found, why a recruiter or an
- * ATS cares, and what to change -- with an anchor into the resume text so the UI
- * can highlight the exact characters being talked about. A rule that cannot
- * produce all four has no business firing.
+ * Every finding states what was found, why it matters, how to fix it, and
+ * where it is in the text so the UI can highlight it.
  */
 
 export type Severity = 'critical' | 'major' | 'minor' | 'info';
@@ -103,9 +99,7 @@ export interface AnalysisResult {
   engineVersion: string;
 }
 
-/* ------------------------------------------------------------------------- */
-/* Metrics                                                                    */
-/* ------------------------------------------------------------------------- */
+// --- Metrics ---------------------------------------------------------------
 
 export interface BulletMetrics {
   total: number;
@@ -167,9 +161,7 @@ export interface ResumeMetrics {
   impliedSeniority: 'junior' | 'middle' | 'senior' | 'lead' | 'unknown';
 }
 
-/* ------------------------------------------------------------------------- */
-/* Job matching                                                               */
-/* ------------------------------------------------------------------------- */
+// --- Job matching ----------------------------------------------------------
 
 export interface SkillMatch {
   canonical: string;
@@ -191,11 +183,9 @@ export interface JobMatchResult {
   titleAlignment: 'strong' | 'partial' | 'weak';
 }
 
-/* ------------------------------------------------------------------------- */
-/* Rules                                                                      */
-/* ------------------------------------------------------------------------- */
+// --- Rules -----------------------------------------------------------------
 
-/** Minimal shape of a parsed job ad, to keep the engine decoupled from it. */
+/** Minimal job ad shape, so the engine does not depend on the job-description entity. */
 export interface JobContext {
   title: string | null;
   requiredSkills: string[];

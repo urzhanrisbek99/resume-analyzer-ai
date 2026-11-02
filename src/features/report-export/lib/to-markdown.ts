@@ -11,17 +11,7 @@ import {
 } from '@/entities/analysis';
 import type { ResumeDocument } from '@/entities/resume';
 
-/**
- * The report as text.
- *
- * Markdown rather than a rendered file because the usual next step is pasting
- * it somewhere: into notes while rewriting, into a message to whoever is
- * helping, into an issue. It also survives being read as plain text, which a
- * PDF does not.
- *
- * Findings keep engine order, so the document is a work list rather than a
- * catalogue: fix from the top and stop when time runs out.
- */
+/** The report as Markdown, findings in engine order (most important first). */
 
 export interface MarkdownReportOptions {
   /** Included so a saved report can be traced to the version that made it. */

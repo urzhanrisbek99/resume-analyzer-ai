@@ -6,20 +6,9 @@ import type { ScreenRequest, ScreenResponse } from './protocol';
 import { screenFile, type ScreenFileInput, type ScreenOutcome } from './screen-file';
 
 /**
- * A small pool of screening workers.
- *
- * Parsing a PDF is tens of milliseconds of synchronous work. Twenty-five of
- * them on the main thread freeze the tab: the progress bar does not move, the
- * sort controls do not respond, and the recruiter watches a dead page. Moving
- * the work off-thread fixes the freeze; running several in parallel also makes
- * it finish sooner, which is a separate win.
- *
- * The pool is deliberately modest. Each worker loads pdf.js, so spawning one
- * per core costs more memory than the time it saves, and the work is I/O-light
- * enough that four is already past the point of diminishing returns.
- *
- * Every failure mode falls back to running on the main thread rather than
- * dropping a file: a slow result is a result, a lost resume is a bug.
+ * Screens a batch in a small worker pool so 25 PDF parses do not freeze the
+ * tab. Each worker loads pdf.js, so the pool stays small. Any worker failure
+ * falls back to the main thread rather than dropping a file.
  */
 
 const MAX_WORKERS = 4;
@@ -49,12 +38,7 @@ export interface RunScreeningOptions {
   signal?: AbortSignal;
 }
 
-/**
- * Screen a batch, off the main thread where possible.
- *
- * Results are reported as they arrive rather than collected and returned at the
- * end, so the table fills in progressively instead of appearing all at once.
- */
+/** Reports results as they arrive so the table fills in progressively. */
 export async function runScreening({
   files,
   job,
@@ -110,7 +94,7 @@ async function drain(
     try {
       onResult(await screenOnWorker(worker, next, job));
     } catch {
-      // This worker is no longer usable. Put the file back for someone else.
+      // This worker is unusable; requeue the file.
       queue.unshift(next);
       return;
     }
@@ -146,17 +130,12 @@ function screenOnWorker(
     worker.addEventListener('error', onError);
 
     const request: ScreenRequest = { kind: 'screen', input, job };
-    // Transfer the buffer: ownership moves, nothing is copied.
+    // Transfer the buffer instead of copying it.
     worker.postMessage(request, [input.bytes]);
   });
 }
 
-/**
- * The fallback, and the path taken when workers are unavailable.
- *
- * Yields between files so the progress bar still paints. Slower than the pool,
- * but identical in behaviour because it calls the same function.
- */
+/** Main-thread fallback. Yields between files so progress still paints. */
 async function runOnMainThread(
   files: ScreenFileInput[],
   job: JobContext | null,

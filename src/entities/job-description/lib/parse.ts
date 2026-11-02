@@ -5,12 +5,8 @@ import { findSpan, normalize, squish, wordPattern } from '@/shared/lib/text';
 import type { JobDescription, JobSkillRequirement, Seniority } from '../model/types';
 
 /**
- * Job advert parsing.
- *
- * The distinction that matters for scoring is required vs nice-to-have: missing
- * a required skill costs a candidate the screen, missing a nice-to-have costs
- * nothing. Ads mark this with headings ("Requirements" / "Would be a plus"), so
- * the text is split on those headings and each half is scanned separately.
+ * Job ad parsing. Splits the ad on headings ("Requirements", "Would be a
+ * plus") to separate required from nice-to-have skills.
  */
 
 const REQUIRED_HEADINGS = [
@@ -167,10 +163,7 @@ interface HeadingBlocks {
   unlabelled: string;
 }
 
-/**
- * Split the ad at heading lines. A heading is a short line that matches one of
- * the known phrasings; everything until the next heading belongs to it.
- */
+/** A heading is a short line matching a known phrasing; it owns the lines below it. */
 function splitByHeadings(text: string): HeadingBlocks {
   const lines = text.split('\n');
   const blocks: HeadingBlocks = {

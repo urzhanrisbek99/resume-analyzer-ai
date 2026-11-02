@@ -3,12 +3,8 @@ import { normalize, squish } from '@/shared/lib/text';
 import { PROBLEMATIC_GLYPHS, SAFE_FONT_KEYWORDS, type PositionedLine } from './types';
 
 /**
- * Layout forensics over positioned lines.
- *
- * ATS parsers read a PDF as a single stream in drawing order. Anything that
- * relies on two-dimensional placement -- columns, tables, margin boxes -- comes
- * out interleaved and unreadable. These helpers detect exactly that, from
- * geometry rather than from guesses about the template.
+ * Detects layouts that ATS parsers read as one interleaved stream: columns,
+ * tables and margin content. Works from line geometry.
  */
 
 const HEADER_ZONE = 0.075;
@@ -19,10 +15,7 @@ export interface ColumnAnalysis {
   multiColumnPages: number[];
 }
 
-/**
- * Detect multi-column body text by looking for a vertical gutter: a band of x
- * that no line crosses, with substantial text on both sides.
- */
+/** Columns show as a vertical gutter no line crosses, with text on both sides. */
 export function analyseColumns(lines: PositionedLine[]): ColumnAnalysis {
   const pages = new Map<number, PositionedLine[]>();
   for (const line of lines) {
@@ -54,15 +47,11 @@ const SAMPLE_STEP = 0.01;
 const MIN_GUTTER_WIDTH = 0.05;
 const GUTTER_SEARCH_MIN = 0.22;
 const GUTTER_SEARCH_MAX = 0.78;
-/** A gutter is only real if both sides carry a meaningful share of the lines. */
 const MIN_SIDE_SHARE = 0.2;
 
 /**
- * The occupied ranges of a line, as the pieces a reader sees.
- *
- * Side-by-side columns are often set on shared baselines, so one visual line
- * carries text from both of them. Measured as a single box, such a line covers
- * the gutter and hides it; measured as spans, the gutter stays visible.
+ * Columns often share baselines, so one visual line can span the gutter.
+ * Measuring each line as spans keeps the gutter visible.
  */
 function lineSpans(line: PositionedLine): readonly { x: number; width: number }[] {
   return line.spans && line.spans.length > 0 ? line.spans : [{ x: line.x, width: line.width }];
@@ -116,10 +105,7 @@ export interface HeaderFooterAnalysis {
   excludedTexts: Set<string>;
 }
 
-/**
- * Content in the top or bottom margin that repeats across pages is page
- * furniture. When contact details live there, an ATS commonly drops them.
- */
+/** Repeated top/bottom margin content. ATS often drops contacts placed there. */
 export function analyseHeaderFooter(
   lines: PositionedLine[],
   pageCount: number,
@@ -139,7 +125,7 @@ export function analyseHeaderFooter(
   const excludedTexts = new Set<string>();
 
   for (const [key, pages] of byText) {
-    // Repetition across pages, or -- on a one-pager -- anything at all up there.
+    // Repeated across pages, or anything there on a one-page resume.
     const repeats = pages.size >= 2;
     const singlePage = pageCount === 1 && pages.size === 1;
     if (!repeats && !singlePage) continue;
@@ -147,7 +133,7 @@ export function analyseHeaderFooter(
     const original = marginLines.find((line) => normalize(line.text) === key);
     if (!original) continue;
 
-    // Bare page numbers are harmless furniture; do not report them as a defect.
+    // Bare page numbers are harmless.
     if (/^\s*(?:page\s*)?\d+\s*(?:\/\s*\d+)?\s*$/i.test(original.text)) {
       excludedTexts.add(original.text);
       continue;
@@ -166,20 +152,12 @@ export function analyseHeaderFooter(
   };
 }
 
-/**
- * Count rows that look tabular: several text runs on one baseline separated by
- * wide gaps. This catches borderless tables, which draw no rectangles at all
- * and therefore hide from graphics-based detection.
- */
+/** Several runs on one baseline separated by wide gaps; catches borderless tables. */
 export function countTabularRows(lines: PositionedLine[]): number {
   return lines.filter((line) => line.innerGaps >= 2).length;
 }
 
-/**
- * CSS keywords, not typefaces. A PDF reader falls back to one of these when the
- * real font name is unavailable, and reporting "sans-serif" as a non-standard
- * font would accuse every such file of a problem it does not have.
- */
+/** Generic CSS families that readers fall back to; not real non-standard fonts. */
 const GENERIC_FAMILIES = new Set(['sans-serif', 'serif', 'monospace', 'cursive', 'fantasy']);
 
 export function collectFontIssues(fontFamilies: Iterable<string>): {

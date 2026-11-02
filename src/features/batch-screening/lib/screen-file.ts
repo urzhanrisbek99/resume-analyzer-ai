@@ -7,13 +7,8 @@ import { buildResumeDocument, extractFromFile, type ResumeDocument } from '@/ent
 import { summariseCandidate } from './summarise';
 
 /**
- * Screen one file: read it, score it, project it onto a shortlist row.
- *
- * Deliberately a plain async function over plain data, with no reference to a
- * worker, a store or the DOM. That is what lets the same code run inside a
- * worker and, when workers are unavailable, directly on the main thread -- one
- * implementation, two execution contexts, and a fallback that cannot drift from
- * the fast path.
+ * Reads, scores and summarises one file. Plain async function with no worker,
+ * store or DOM dependency, so the worker and the main-thread fallback share it.
  */
 
 export interface ScreenFileInput {

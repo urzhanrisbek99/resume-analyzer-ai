@@ -12,19 +12,11 @@ import { serverEnv } from '@/shared/config/env';
 import { getLlmProvider } from '@/shared/llm';
 
 /**
- * Rewrite a handful of resume lines to the standard a rule describes.
- *
- * Scope is deliberately narrow. The model is not asked to assess the resume --
- * that is the deterministic engine's job, and a score that moved because a model
- * felt differently today would be worthless. It is asked to do the one thing it
- * is genuinely better at: turning a flat sentence into a sharp one.
- *
- * The text arriving here is already PII-redacted by the client, which is the
- * only side that holds the document. See docs/adr/0003-privacy-boundary.md.
+ * Rewrites a few resume lines to meet a rule. The model never scores: that
+ * stays deterministic. Input is already PII-redacted by the client (ADR 0003).
  */
 
 export const runtime = 'nodejs';
-/** Never cached: the body differs on every call and nothing here is static. */
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
@@ -144,13 +136,8 @@ function userPrompt({ guidance, excerpts, context }: EnhanceRequest): string {
 }
 
 /**
- * Parse the model output.
- *
- * Tolerant of a code fence and of surrounding prose, because models add both
- * despite instructions. Strict about the shape: anything that does not validate
- * is dropped rather than rendered, and a rewrite identical to its input is
- * dropped too -- showing a user an unchanged line as a suggestion is worse than
- * showing nothing.
+ * Tolerates code fences and surrounding prose. Drops anything that fails the
+ * schema, and rewrites identical to their input.
  */
 function parseSuggestions(raw: string, excerpts: string[]): Suggestion[] {
   const start = raw.indexOf('{');

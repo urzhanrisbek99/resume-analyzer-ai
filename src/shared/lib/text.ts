@@ -1,9 +1,4 @@
-/**
- * Text primitives shared by extraction, segmentation and the rule engine.
- *
- * Everything here is pure and locale-aware for the two scripts this product
- * actually sees in resumes: Latin and Cyrillic.
- */
+/** Pure text helpers for Latin and Cyrillic. */
 
 export interface TextSpan {
   /** Inclusive character offset into the owning plain-text document. */
@@ -21,10 +16,7 @@ export function squish(input: string): string {
   return input.replace(/\s+/g, ' ').trim();
 }
 
-/**
- * Normalise text for comparison: lowercase, strip diacritics, unify the
- * dash/quote zoo that PDF exports produce.
- */
+/** Lowercase, strip diacritics and unify the dash and quote variants PDFs produce. */
 export function normalize(input: string): string {
   return input
     .normalize('NFKD')
@@ -45,10 +37,7 @@ export function wordCount(input: string): number {
   return words(input).length;
 }
 
-/**
- * Split into sentences. Deliberately conservative: resume bullets are often
- * fragments without terminal punctuation, so a line break also ends a sentence.
- */
+/** Line breaks also end sentences: bullets often lack terminal punctuation. */
 export function sentences(input: string): string[] {
   return input
     .split(/(?<=[.!?])\s+(?=[\p{Lu}\p{N}])|\n+/gu)
@@ -148,19 +137,13 @@ export function uppercaseRatio(input: string): number {
   return letters === 0 ? 0 : upper / letters;
 }
 
-/** Escape a literal string for safe inclusion in a regular expression. */
 export function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
- * Word-boundary matcher that also works for Cyrillic.
- *
- * JavaScript's `\b` is defined over ASCII word characters only, so
- * `/\bдата\b/` never matches: the Cyrillic letters are non-word characters and
- * the boundary it looks for is not there. Silently, and only for the
- * non-English half of the vocabulary -- which is the half this product cannot
- * afford to get wrong. Unicode lookarounds give the intended behaviour.
+ * Word-boundary matcher that works for Cyrillic. `\b` only knows ASCII word
+ * characters, so `/\bдата\b/` never matches.
  */
 export function wordPattern(alternatives: readonly string[], flags = 'iu'): RegExp {
   const body = alternatives.map(escapeRegExp).join('|');

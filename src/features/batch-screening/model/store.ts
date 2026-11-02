@@ -22,17 +22,12 @@ import { summariseCandidate } from '../lib/summarise';
 import { runScreening, workersSupported } from '../lib/worker-pool';
 
 /**
- * Batch screening state.
- *
- * Parsed documents are kept, not just their summaries. Changing the vacancy
- * then re-scores the whole shortlist from memory in milliseconds instead of
- * re-reading forty files -- which is the difference between a tool a recruiter
- * will iterate with and one they will run once.
+ * Batch screening state. Parsed documents are kept in memory, so changing the
+ * job ad re-scores the shortlist without re-reading files.
  */
 
 export type BatchStatus = 'idle' | 'processing' | 'ready';
 
-/** A file that parsed, kept so re-scoring never touches the disk again. */
 interface ParsedRecord {
   id: string;
   fileName: string;
@@ -130,13 +125,7 @@ export const useBatchStore = create<BatchState>((set, get) => ({
     });
   },
 
-  /**
-   * Read and score a batch, off the main thread where possible.
-   *
-   * Results are applied as they arrive rather than at the end, so the table
-   * fills in progressively. Completion order is not input order, which is fine:
-   * the shortlist is sorted by fit, never by upload sequence.
-   */
+  /** Results arrive in completion order; the table is sorted anyway. */
   async addFiles(files) {
     const existing = get().records.length + get().failures.length;
     const room = UPLOAD_LIMITS.maxBatchFiles - existing;
@@ -246,13 +235,7 @@ export const useBatchStore = create<BatchState>((set, get) => ({
 
 const NO_CANDIDATES: readonly CandidateSummary[] = [];
 
-/**
- * The shortlist in display order.
- *
- * Sorted in a memo rather than in the selector: a selector that returns a new
- * array every call never compares equal to its previous result and re-renders
- * forever.
- */
+/** Sorted in a memo: a selector returning a new array re-renders forever. */
 export function useSortedCandidates(): readonly CandidateSummary[] {
   const summaries = useBatchStore((state) => state.summaries);
   const sort = useBatchStore((state) => state.sort);

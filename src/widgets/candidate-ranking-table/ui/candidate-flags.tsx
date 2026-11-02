@@ -2,13 +2,7 @@ import { Badge, type Tone } from '@/shared/ui/badge';
 
 import type { CandidateFlag } from '@/entities/candidate';
 
-/**
- * Flag labels, worded as questions rather than verdicts.
- *
- * A gap is something to ask about, not a reason to discard someone. A tool used
- * on forty resumes at a time nudges behaviour at scale, so the wording matters
- * more here than it would in a single-candidate view.
- */
+/** Flag labels, worded as questions rather than verdicts. */
 const FLAG_META: Record<CandidateFlag, { label: string; tone: Tone; title: string }> = {
   'ats-unreadable': {
     label: 'плохо читается',

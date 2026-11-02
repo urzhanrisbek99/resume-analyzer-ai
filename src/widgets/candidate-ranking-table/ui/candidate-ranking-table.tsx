@@ -22,14 +22,7 @@ import {
 
 import { CandidateFlags } from './candidate-flags';
 
-/**
- * The shortlist.
- *
- * A recruiter screening forty resumes is answering one question per row: is
- * this person worth twenty minutes. So each row carries the fit, the gap that
- * would cost them the call, and nothing else; the detail lives one expansion
- * away rather than in a column nobody can read at this density.
- */
+/** The shortlist: fit and the main concern per row; details on expand. */
 
 export interface CandidateRankingTableProps {
   candidates: readonly CandidateSummary[];

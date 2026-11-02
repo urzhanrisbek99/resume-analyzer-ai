@@ -12,13 +12,7 @@ import { datedFileName, downloadText, safeFileName } from '../lib/download';
 import { shortlistToCsv } from '../lib/to-csv';
 import { analysisToMarkdown } from '../lib/to-markdown';
 
-/**
- * Export actions.
- *
- * Both formats are generated in the browser from data already in memory, so
- * exporting keeps the same privacy guarantee as everything else: no upload, no
- * round trip, nothing to intercept.
- */
+/** Exports are generated in the browser from memory; nothing is uploaded. */
 
 export interface ReportExportActionsProps {
   document: ResumeDocument;

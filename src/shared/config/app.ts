@@ -21,11 +21,7 @@ export const UPLOAD_LIMITS = {
   acceptedExtensions: ['.pdf', '.docx', '.txt', '.md'],
 } as const;
 
-/**
- * A resume is only ever held in memory. Nothing is written to disk or to a
- * database, and the original file never crosses the network boundary — see
- * docs/adr/0003-privacy-boundary.md.
- */
+/** Resumes are held in memory only and never uploaded (ADR 0003). */
 export const PRIVACY = {
   filesLeaveDevice: false,
   llmReceivesRedactedTextOnly: true,

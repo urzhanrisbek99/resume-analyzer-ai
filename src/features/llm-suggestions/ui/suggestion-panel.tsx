@@ -15,15 +15,8 @@ import type { ResumeDocument } from '@/entities/resume';
 import { canEnhance, requestSuggestions } from '../api/enhance';
 
 /**
- * AI rewrites for one finding.
- *
- * Opt-in per finding rather than automatic. The deterministic report is
- * complete on its own, and sending text to a model -- even redacted -- is a
- * decision the user makes deliberately, not a side effect of opening a card.
- *
- * Nothing is applied automatically either. Suggestions are shown next to the
- * original and copied by hand, because a rewrite the user has not read is a
- * rewrite they cannot defend in an interview.
+ * AI rewrites for one finding. Opt-in per finding, since it sends (redacted)
+ * text to a model. Suggestions are shown, never applied automatically.
  */
 
 export interface SuggestionPanelProps {

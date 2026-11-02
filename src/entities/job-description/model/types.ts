@@ -1,12 +1,6 @@
 import type { TextSpan } from '@/shared/lib/text';
 
-/**
- * A parsed job advert.
- *
- * Job ads are even less structured than resumes: half of them are a wall of
- * prose, the rest a bulleted list under headings that vary by company. The
- * parser extracts what matching actually needs and leaves the rest alone.
- */
+/** A parsed job ad: only what matching needs. */
 
 export type Seniority = 'junior' | 'middle' | 'senior' | 'lead' | 'unknown';
 

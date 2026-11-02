@@ -1,10 +1,4 @@
-/**
- * Russian plural forms.
- *
- * Russian selects between three forms by the last digits of the count, and
- * getting it wrong ("3 замечаний") is the kind of detail that makes an
- * interface feel machine-translated. Worth eleven lines to avoid.
- */
+/** Russian plurals: three forms chosen by the last digits (1 замечание, 3 замечания, 5 замечаний). */
 export function plural(count: number, one: string, few: string, many: string): string {
   const mod10 = count % 10;
   const mod100 = count % 100;

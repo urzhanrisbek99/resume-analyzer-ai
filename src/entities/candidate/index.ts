@@ -1,10 +1,6 @@
 /**
- * Public API of the `candidate` entity.
- *
- * Holds the shortlist projection and the ranking that orders it. Building a
- * summary from a parsed resume and its analysis crosses two other entities, so
- * that mapping lives in the screening feature rather than here -- this slice
- * stays pure and depends on nothing but its own model.
+ * Public API of `candidate`: the shortlist row and its ranking. Building a row
+ * spans two entities, so that lives in the batch-screening feature.
  */
 
 export type {

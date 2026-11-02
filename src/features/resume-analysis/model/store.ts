@@ -22,18 +22,12 @@ import {
 } from '@/entities/resume';
 
 /**
- * Analysis state.
- *
- * The whole pipeline runs here, in the browser: the file is read into memory,
- * parsed, scored and displayed without a single byte crossing the network. That
- * is a deliberate product guarantee, not an implementation detail -- see
- * docs/adr/0003-privacy-boundary.md -- and it is also why this is a store rather
- * than a server action.
+ * Analysis state. The whole pipeline runs in the browser and nothing is
+ * uploaded (ADR 0003), which is why this is a store, not a server action.
  */
 
 export type AnalysisStatus = 'idle' | 'reading' | 'analysing' | 'ready' | 'error';
 
-/** Which findings the panel is showing. */
 export type DimensionFilter = DimensionId | 'all';
 
 interface AnalysisState {
@@ -70,7 +64,6 @@ const INITIAL = {
   dimensionFilter: 'all' as DimensionFilter,
 };
 
-/** Map a parsed advert onto the minimal shape the engine consumes. */
 function toJobContext(jobText: string): JobContext | null {
   const trimmed = jobText.trim();
   if (trimmed.length < 40) return null;
@@ -179,12 +172,7 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
     set({ jobText: text });
   },
 
-  /**
-   * Re-score against the current advert.
-   *
-   * Cheap enough to run synchronously: the document is already parsed, and the
-   * engine is pure arithmetic over it.
-   */
+  /** Re-scores the parsed document against the current job ad; synchronous and cheap. */
   applyJob() {
     const { document, jobText } = get();
     if (!document) return;
@@ -212,12 +200,8 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
 const NO_FINDINGS: readonly Finding[] = [];
 
 /**
- * Findings for the active dimension filter, in engine order.
- *
- * The filtering happens in a memo rather than inside the selector. A selector
- * that builds a new array on every call never compares equal to its previous
- * result, so zustand re-renders, which calls the selector again: an infinite
- * loop that surfaces as React error #185.
+ * Filtered in a memo, not the selector: a selector returning a new array each
+ * call loops forever (React error #185).
  */
 export function useVisibleFindings(): readonly Finding[] {
   const findings = useAnalysisStore((state) => state.result?.findings);

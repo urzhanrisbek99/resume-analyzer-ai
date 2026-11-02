@@ -4,14 +4,7 @@ import type { AnalysisResult, JobContext } from '@/entities/analysis';
 import type { CandidateFlag, CandidateSummary } from '@/entities/candidate';
 import type { ResumeDocument } from '@/entities/resume';
 
-/**
- * Project a parsed resume and its analysis onto the shortlist row.
- *
- * This crosses two entities, which is why it lives in the feature that
- * orchestrates them rather than inside `candidate`: that slice stays pure and
- * testable with hand-written summaries, and the knowledge of how a resume maps
- * onto a row sits with the screen that needs it.
- */
+/** Maps a resume and its analysis to a shortlist row. Lives here because it spans two entities. */
 
 /** A gap shorter than this is ordinary time between jobs. */
 const GAP_FLAG_MONTHS = 6;
@@ -64,13 +57,7 @@ export function summariseCandidate({
   };
 }
 
-/**
- * Which of the vacancy requirements the resume actually demonstrates.
- *
- * Matching is done against the whole document rather than the skills section
- * alone: a technology proven inside a job description still counts, and often
- * counts for more.
- */
+/** Matched against the whole document: skills shown in job bullets count. */
 function matchSkills(document: ResumeDocument, job: JobContext | null) {
   if (!job) return { matchedRequired: [], missingRequired: [], matchedOptional: [] };
 

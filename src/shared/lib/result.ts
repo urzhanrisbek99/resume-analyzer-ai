@@ -1,10 +1,4 @@
-/**
- * Explicit success/failure values.
- *
- * Extraction fails for mundane reasons (an encrypted PDF, a scan with no text
- * layer) that the UI must explain rather than swallow, so those paths return a
- * Result instead of throwing.
- */
+/** Success/failure values for expected failures (encrypted PDF, no text layer) the UI must explain. */
 
 export type Result<T, E = AppError> =
   { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: E };

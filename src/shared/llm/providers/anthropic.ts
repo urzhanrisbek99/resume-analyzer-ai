@@ -4,13 +4,7 @@ import { appError, err, ok, toErrorMessage, type Result } from '@/shared/lib/res
 
 import type { LlmCompletion, LlmProvider, LlmRequest, ProviderConfig } from '../types';
 
-/**
- * Vendor adapter.
- *
- * This file is the only place in the codebase that knows which company supplies
- * the model. Everything above it sees `LlmProvider` and nothing else, so a
- * second adapter sits beside this one without touching a single caller.
- */
+/** Anthropic adapter: the only file that knows the vendor. */
 
 const DEFAULT_TEMPERATURE = 0.2;
 

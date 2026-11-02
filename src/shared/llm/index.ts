@@ -12,12 +12,7 @@ export type {
   ProviderFactory,
 } from './types';
 
-/**
- * Provider registry.
- *
- * Adapters are loaded on demand so that an unused vendor SDK never reaches the
- * bundle, and so that a deployment without a key does not import one at all.
- */
+/** Provider registry. Adapters load on demand, so unused vendor SDKs stay out of the bundle. */
 const FACTORIES: Record<string, () => Promise<ProviderFactory>> = {
   anthropic: async () => (await import('./providers/anthropic')).createProvider,
 };
@@ -26,12 +21,7 @@ export const SUPPORTED_PROVIDERS = Object.keys(FACTORIES);
 
 let cached: LlmProvider | null = null;
 
-/**
- * The configured provider, or null when no key is set.
- *
- * Null is a supported state, not a failure: the deterministic engine is the
- * product, and the suggestion layer is an optional addition on top of it.
- */
+/** The configured provider, or null when none is set (a supported state). */
 export async function getLlmProvider(): Promise<LlmProvider | null> {
   if (cached) return cached;
 

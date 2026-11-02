@@ -17,14 +17,7 @@ import {
   type ScoreBand,
 } from '@/entities/analysis';
 
-/**
- * The score panel.
- *
- * A single number invites the question "why", so it is decomposed: each
- * dimension shows its own score, how many findings it holds and at what
- * severity, and selecting one filters the findings list. A score the user
- * cannot interrogate is a score they will not trust.
- */
+/** Overall score broken down by dimension; selecting one filters the findings. */
 
 const BAND_TONE: Record<ScoreBand, Tone> = {
   excellent: 'good',

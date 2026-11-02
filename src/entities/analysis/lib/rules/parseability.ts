@@ -2,15 +2,7 @@ import { excerpt } from '@/shared/lib/text';
 
 import { fail, pass, skip, type Rule } from '../../model/types';
 
-/**
- * Parseability: can an applicant tracking system read the file at all.
- *
- * This dimension is weighted hardest because its failures are absolute. A
- * beautifully written resume in a two-column template reaches the recruiter as
- * interleaved nonsense, and no amount of good content compensates. Every rule
- * here reads layout evidence gathered during extraction -- facts about the
- * document, not guesses about the template.
- */
+/** Parseability: can an ATS read the file. Reads layout evidence from extraction. */
 
 export const parseabilityRules: Rule[] = [
   {

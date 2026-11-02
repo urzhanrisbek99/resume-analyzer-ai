@@ -21,13 +21,7 @@ export interface JobInputProps {
   className?: string;
 }
 
-/**
- * Job advert input.
- *
- * Collapsed by default: the analysis is worth something without an advert, and
- * putting a large empty textarea above the score would suggest otherwise. Open
- * it and the keyword dimension switches on.
- */
+/** Collapsed by default: the analysis is useful without a job ad. */
 export function JobInput({
   value,
   onChange,

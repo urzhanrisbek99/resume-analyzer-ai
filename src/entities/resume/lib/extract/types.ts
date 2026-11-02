@@ -1,11 +1,8 @@
 import type { LayoutEvidence, SourceFormat } from '../../model/types';
 
 /**
- * A line of text with enough geometry to reason about page layout.
- *
- * Coordinates are normalised to 0-1 against page width and height, with the
- * origin at the top-left, so PDF user space and DOCX flow layout produce
- * comparable numbers.
+ * A line with page geometry, normalised to 0-1 with a top-left origin so PDF
+ * and DOCX produce comparable numbers.
  */
 export interface PositionedLine {
   text: string;
@@ -19,13 +16,7 @@ export interface PositionedLine {
   isBold: boolean;
   /** Number of wide horizontal gaps inside the line, a tabular-layout signal. */
   innerGaps: number;
-  /**
-   * The horizontal ranges the line actually covers, normalised.
-   *
-   * A line that crosses a column gutter records one span per side. Column
-   * detection needs that: `x` and `width` describe a box drawn around the whole
-   * line, which spans the very gutter the detector is looking for.
-   */
+  /** Ranges the line covers; one per side when it crosses a column gutter. */
   spans?: readonly TextSpan[];
 }
 
@@ -78,8 +69,7 @@ export const SAFE_FONT_KEYWORDS = [
 
 /** Glyphs that survive rendering but garble on copy-paste or ATS ingestion. */
 export const PROBLEMATIC_GLYPHS = [
-  // Latin ligatures. They render correctly but arrive as a single glyph when
-  // copied, so an ATS reads "workflow" as "work" + one unknown character.
+  // Latin ligatures copy as one glyph: an ATS reads "workflow" as "work" + junk.
   'ﬀ', // ff
   'ﬁ', // fi
   'ﬂ', // fl

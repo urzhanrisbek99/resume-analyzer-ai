@@ -3,24 +3,11 @@ import { formatMonths } from '@/shared/lib/dates';
 import { rankScore, requiredCoverage, type CandidateSummary } from '@/entities/candidate';
 
 /**
- * The shortlist as a spreadsheet.
- *
- * CSV is the format recruiters actually work in: it opens in Excel, in Google
- * Sheets and in whatever the ATS imports. Two details decide whether it works
- * at all, and both are easy to get wrong:
- *
- *   - Quoting. A value containing a comma, a quote or a newline must be wrapped
- *     and its quotes doubled, or the row silently splits into the wrong columns.
- *   - Encoding. Excel reads a UTF-8 file as the system codepage unless it finds
- *     a byte-order mark, which turns every Cyrillic name into mojibake.
+ * Shortlist as CSV. Values are RFC 4180 quoted, and the file starts with a
+ * BOM because Excel otherwise misreads UTF-8 Cyrillic.
  */
 
-/**
- * Excel needs this to recognise UTF-8. Sheets and LibreOffice ignore it.
- *
- * Built from its code point: a literal byte-order mark in source is an
- * invisible character that no reviewer can see and no diff explains.
- */
+/** Built from its code point: a literal BOM is invisible in source and diffs. */
 const BOM = String.fromCharCode(0xfeff);
 
 const FLAG_LABELS: Record<string, string> = {
@@ -34,7 +21,6 @@ const FLAG_LABELS: Record<string, string> = {
 export interface ShortlistCsvOptions {
   /** Omits the match columns when no vacancy was supplied. */
   hasJob: boolean;
-  /** Written into the header comment so the file explains itself later. */
   jobTitle?: string | null;
   generatedAt?: Date;
 }
@@ -104,13 +90,7 @@ function toRow(cells: readonly string[]): string {
   return cells.map(escapeCell).join(',');
 }
 
-/**
- * RFC 4180 quoting.
- *
- * A leading `=`, `+`, `-` or `@` is also prefixed with an apostrophe: without
- * it a spreadsheet treats the value as a formula, which is both wrong and a
- * known injection vector when the file is opened by someone else.
- */
+/** RFC 4180 quoting. Leading `= + - @` get an apostrophe to prevent formula injection. */
 export function escapeCell(value: string): string {
   const guarded = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
 

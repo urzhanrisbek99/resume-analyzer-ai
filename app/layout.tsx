@@ -26,11 +26,7 @@ export const viewport: Viewport = {
   ],
 };
 
-/**
- * The two modes the product has. Kept here rather than in a widget: it is the
- * application shell, not a reusable block, and nothing below the app layer
- * should know how many routes exist.
- */
+/** App-shell navigation: only the app layer knows which routes exist. */
 const NAV = [
   { href: ROUTES.candidate, label: 'Проверить резюме' },
   { href: ROUTES.recruiter, label: 'Скрининг кандидатов' },

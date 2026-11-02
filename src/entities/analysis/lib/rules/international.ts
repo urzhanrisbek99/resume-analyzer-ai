@@ -5,14 +5,9 @@ import type { SensitiveField } from '@/entities/resume/@x/analysis';
 import { fail, pass, skip, type Rule } from '../../model/types';
 
 /**
- * Readiness for a foreign employer.
- *
- * Everything in this dimension is a difference in local convention, not a
- * mistake. A photo and a date of birth are standard on a CV here and a reason
- * for rejection in the US, UK, Canada and much of the EU, where recruiters are
- * instructed to discard resumes carrying protected characteristics to avoid
- * discrimination claims. The findings explain that difference rather than
- * implying the candidate did something wrong.
+ * Readiness for a foreign employer. Photos and birth dates are normal locally
+ * but get resumes discarded in the US, UK and EU; findings explain the
+ * convention instead of calling it a mistake.
  */
 
 const SENSITIVE_LABELS: Record<SensitiveField, string> = {

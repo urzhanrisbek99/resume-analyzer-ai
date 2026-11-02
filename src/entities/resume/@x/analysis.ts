@@ -1,11 +1,4 @@
-/**
- * Cross-import surface for the `analysis` entity (FSD 2.1 `@x` notation).
- *
- * The rule engine is defined in terms of a parsed resume, so it needs these
- * types. Exposing them here rather than through the public API keeps the
- * dependency explicit and one-directional: `analysis` may read `resume`, and
- * the linter enforces that nothing flows the other way.
- */
+/** Cross-import surface for `analysis` (FSD `@x` notation): the resume types the engine reads. */
 
 export type {
   ContactBlock,

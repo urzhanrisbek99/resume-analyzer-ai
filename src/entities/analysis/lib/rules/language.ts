@@ -2,13 +2,7 @@ import { excerpt } from '@/shared/lib/text';
 
 import { fail, pass, skip, type Rule } from '../../model/types';
 
-/**
- * Language and mechanics.
- *
- * Small things, individually. Together they are what makes a resume read as
- * careful or as rushed, and a recruiter forms that impression in the first few
- * seconds -- before reading a single achievement.
- */
+/** Language and mechanics: consistency, tense, readability. */
 
 const MAX_AVERAGE_SENTENCE_WORDS = 24;
 

@@ -1,11 +1,6 @@
 /**
- * A fixed-window rate limiter held in process memory.
- *
- * Deliberately the simplest thing that works for a single instance. It is not
- * correct across a horizontally scaled deployment -- each instance would keep
- * its own counters -- and the honest fix there is a shared store such as Redis
- * or the platform's own limiter. For a tool whose expensive path is one
- * optional model call, the trade is worth naming rather than over-building.
+ * In-memory fixed-window rate limiter. Correct for a single instance only;
+ * multiple instances would need a shared store such as Redis.
  */
 
 interface Window {
@@ -54,13 +49,7 @@ function pruneExpired(now: number): void {
   }
 }
 
-/**
- * The caller identity.
- *
- * Behind a proxy the socket address is the proxy, so the forwarded header is
- * preferred. It is client-controlled and therefore spoofable -- acceptable for
- * a cost guard, not for anything security-bearing.
- */
+/** Prefers the forwarded header behind a proxy. Spoofable: fine for a cost guard only. */
 export function clientKey(headers: Headers): string {
   const forwarded = headers.get('x-forwarded-for');
   if (forwarded) {

@@ -7,14 +7,7 @@ import { hasWeakOpening, isQuantified, startsWithActionVerb } from '../metrics';
 /** Unicode boundaries: `\b` never matches next to a Cyrillic letter. */
 const FIRST_PERSON_HINT = wordPattern(['я', 'мы', 'мой', 'моя', 'мои', 'i', 'my', 'we']);
 
-/**
- * Content: does the resume show impact, or list duties.
- *
- * This is the dimension that separates a resume that gets interviews from one
- * that gets filed. Everything here is measurable -- a bullet either carries a
- * number or it does not -- and every finding points at specific text, because
- * "make it stronger" is advice nobody can act on.
- */
+/** Content: do bullets show measurable impact or list duties. */
 
 /** Below this share of quantified bullets a resume reads as a job description. */
 const QUANTIFIED_TARGET = 0.5;
@@ -35,11 +28,7 @@ export const contentRules: Rule[] = [
     evaluate: ({ resume, metrics }) => {
       if (metrics.bullets.total > 0) return pass();
 
-      /*
-       * Scored, never skipped. Skipping would leave the content dimension with
-       * almost no rules running and a near-perfect score -- an empty resume
-       * outscoring a good one, because there was nothing in it to criticise.
-       */
+      // Scored, never skipped: otherwise an empty resume would score near 100.
       return fail({
         detail:
           resume.experience.length === 0

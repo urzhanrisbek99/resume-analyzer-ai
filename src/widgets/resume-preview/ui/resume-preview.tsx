@@ -11,13 +11,8 @@ import type { Finding } from '@/entities/analysis';
 import type { ResumeDocument } from '@/entities/resume';
 
 /**
- * The resume as the analyzer sees it.
- *
- * Two jobs. First, it shows the text an ATS would actually extract, which is
- * often a revelation on its own -- a two-column CV renders here as the
- * interleaved mess a parser produces. Second, selecting a finding highlights the
- * exact characters it refers to, which is the difference between "add numbers
- * to your bullets" and "this bullet, right here".
+ * Shows the text as an ATS extracts it (a two-column CV appears interleaved)
+ * and highlights the spans of the selected finding.
  */
 
 export interface ResumePreviewProps {
@@ -97,10 +92,7 @@ export function ResumePreview({ document, activeFinding, className }: ResumePrev
   );
 }
 
-/**
- * Collect the finding's spans, clamped to the document and merged where they
- * overlap, so a highlight is never rendered twice or out of bounds.
- */
+/** Clamps and merges overlapping spans so nothing is highlighted twice. */
 function normaliseSpans(finding: Finding | null, length: number): TextSpan[] {
   if (!finding) return [];
 

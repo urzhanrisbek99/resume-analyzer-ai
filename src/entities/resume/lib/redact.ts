@@ -1,17 +1,8 @@
 import type { ResumeDocument } from '../model/types';
 
 /**
- * PII redaction.
- *
- * Nothing leaves the device except when the user explicitly asks for AI
- * suggestions, and even then the model sees the writing, not the person. Names,
- * contact details and links are replaced with stable placeholders before the
- * text crosses the network boundary, and restored on the way back so the
- * suggestion still reads naturally.
- *
- * This is a product guarantee, not a nicety: a resume is one of the most
- * sensitive documents a person owns, and "we only send it to the model" is the
- * kind of sentence that loses a user's trust the moment they think about it.
+ * Replaces names, contacts and links with stable placeholders before text is
+ * sent to a model, and restores them in the response (ADR 0003).
  */
 
 export interface RedactionMap {
@@ -28,12 +19,7 @@ const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]*\w/g;
 const PHONE_RE = /(?:\+\d{1,3}[\s(-]?)?(?:\d[\s()-]?){9,14}\d/g;
 const URL_RE = /(?:https?:\/\/|www\.)[^\s<>",;)\]]+/gi;
 
-/**
- * Redact a document into text safe to send to a model.
- *
- * Longer values are replaced first so that a name appearing inside an email
- * address does not leave a fragment behind.
- */
+/** Longer values go first so a name inside an email leaves no fragment. */
 export function redactForLlm(document: ResumeDocument, text?: string): RedactedText {
   const source = text ?? document.plainText;
   const entries: Record<string, string> = {};
@@ -75,7 +61,6 @@ export function redactForLlm(document: ResumeDocument, text?: string): RedactedT
   return { text: redacted, map: { entries } };
 }
 
-/** Put the real values back into a model response. */
 export function restore(text: string, map: RedactionMap): string {
   let restored = text;
   for (const [placeholder, original] of Object.entries(map.entries)) {
@@ -85,12 +70,7 @@ export function restore(text: string, map: RedactionMap): string {
   return restored;
 }
 
-/**
- * Assert that redacted text carries none of the known personal values.
- *
- * Called before every outbound request. A redaction bug must fail loudly rather
- * than quietly leak, so this throws instead of returning a boolean.
- */
+/** Throws if any known personal value survived redaction. Called before every request. */
 export function assertRedacted(redacted: string, document: ResumeDocument): void {
   const leaked: string[] = [];
   const check = (value: string | null, label: string) => {

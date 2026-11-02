@@ -1,10 +1,4 @@
-/**
- * Identifier helpers.
- *
- * Analysis output is snapshot-tested, so identifiers must be reproducible for
- * the same input. `stableId` derives an id from content; `randomId` is only for
- * throwaway client-side keys where reproducibility does not matter.
- */
+/** `stableId` is content-derived so snapshots are reproducible; `randomId` is for throwaway keys. */
 
 /** FNV-1a: small, fast, dependency-free, good enough for non-crypto ids. */
 function fnv1a(input: string): number {

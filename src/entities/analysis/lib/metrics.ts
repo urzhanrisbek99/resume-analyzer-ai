@@ -21,11 +21,8 @@ import {
 } from './dictionaries/language';
 
 /**
- * Metrics are computed once and handed to every rule.
- *
- * Rules stay cheap and readable because none of them re-walks the document, and
- * the numbers they judge are the same numbers the UI shows -- so a score and the
- * panel explaining it can never disagree.
+ * Metrics are computed once and shared by all rules and the UI, so a score
+ * and the panel explaining it always agree.
  */
 
 /** A bullet longer than this stops being scanned and starts being skipped. */
@@ -129,11 +126,8 @@ function tenureMetrics(resume: ResumeDocument): TenureMetrics {
 const SENIORITY_RANK: Record<string, number> = { junior: 1, middle: 2, senior: 3, lead: 4 };
 
 /**
- * Whether titles trend upward over time.
- *
- * Experience is listed newest-first by convention, so a rising career reads as
- * a falling rank down the page. When titles carry no seniority words at all the
- * answer is "unclear", never "flat" -- an absent signal is not a negative one.
+ * Experience is listed newest first, so a rising career reads downwards.
+ * No seniority words at all gives "unclear", not "flat".
  */
 function titleProgression(resume: ResumeDocument): TenureMetrics['progression'] {
   const ranks = resume.experience
@@ -208,7 +202,7 @@ function consistencyMetrics(
   return {
     dateFormats: [...dateFormats],
     bulletMarkers: [...markers],
-    // Only a genuine mix counts: a couple of stragglers is not an inconsistency.
+    // A couple of stragglers is not an inconsistency.
     mixedBulletPunctuation: bullets.length >= 4 && withPeriod >= 2 && withoutPeriod >= 2,
     mixedTense: hasMixedTense(resume),
   };
@@ -217,10 +211,7 @@ function consistencyMetrics(
 const PRESENT_TENSE_RE = /\b\w+(?:s|ing)\b/;
 const PAST_TENSE_RE = /\b\w+ed\b/;
 
-/**
- * Tense mixing inside a single finished role. Present tense is correct for the
- * current job, so only past roles are examined.
- */
+/** Only past roles: present tense is correct for the current job. */
 function hasMixedTense(resume: ResumeDocument): boolean {
   for (const item of resume.experience) {
     if (!item.period || item.period.isCurrent) continue;
@@ -250,7 +241,6 @@ function findCliches(plainText: string): Array<{ phrase: string; span: TextSpan 
       if (index === -1) break;
       hits.push({ phrase: cliche, span: { start: index, end: index + needle.length } });
       from = index + needle.length;
-      // One example per phrase is enough to make the point.
       break;
     }
   }

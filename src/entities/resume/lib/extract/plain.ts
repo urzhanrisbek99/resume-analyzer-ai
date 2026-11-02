@@ -9,13 +9,7 @@ import {
   type RawExtraction,
 } from './types';
 
-/**
- * Plain text and Markdown.
- *
- * The happiest possible input for an ATS, and a useful escape hatch: a candidate
- * whose PDF has no text layer can paste the content and still get a full report
- * on structure, content and keywords.
- */
+/** Plain text and Markdown; also the fallback for scanned PDFs via paste. */
 
 const MIN_TEXT_CHARS = 80;
 const CHARS_PER_PAGE = 3400;

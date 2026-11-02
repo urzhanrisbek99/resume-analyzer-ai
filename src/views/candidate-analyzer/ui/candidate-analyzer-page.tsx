@@ -2,13 +2,7 @@ import { ShieldCheck } from 'lucide-react';
 
 import { AnalyzerWorkspace } from './analyzer-workspace';
 
-/**
- * The candidate route.
- *
- * A view assembles widgets and sets the page frame. It holds no state and no
- * logic, which keeps routes cheap to add and impossible to accidentally turn
- * into a second home for business rules.
- */
+/** Candidate route: page frame only, no state or logic. */
 export function CandidateAnalyzerPage() {
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:py-12">

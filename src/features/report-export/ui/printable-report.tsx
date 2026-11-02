@@ -11,17 +11,9 @@ import {
 import type { ResumeDocument } from '@/entities/resume';
 
 /**
- * The report as a printed document.
- *
- * Rendered always, hidden on screen, visible only to the printer. Printing the
- * interactive view directly would capture whatever happens to be expanded, so a
- * PDF saved by one user would be missing findings another user's PDF contained.
- * This renders every finding unconditionally, which is the whole point of a
- * document you hand to someone.
- *
- * No PDF library. The browser already has a layout engine and a PDF writer, and
- * its output has selectable text, real fonts and working links -- things a
- * canvas-based exporter gives up.
+ * Print-only report with every finding expanded, so the saved PDF does not
+ * depend on UI state. Uses the browser's PDF output: selectable text, real
+ * fonts and links, no PDF library.
  */
 
 export interface PrintableReportProps {

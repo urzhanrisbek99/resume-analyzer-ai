@@ -1,15 +1,9 @@
 /**
- * Writing vocabulary used by the content and language rules.
- *
- * Bilingual throughout. A resume written in Russian for an international
- * employer gets judged by the same standards, so every list has both sides --
- * otherwise the tool would quietly grade Russian resumes as flawless.
+ * Vocabulary for the content and language rules, in English and Russian so
+ * Russian resumes are held to the same standard.
  */
 
-/**
- * Strong openers. A bullet starting with one of these states what the candidate
- * did; a bullet starting with anything else usually states what they were near.
- */
+/** Strong bullet openers: they state what the candidate did. */
 export const ACTION_VERBS: readonly string[] = [
   // impact
   'achieved',
@@ -90,7 +84,7 @@ export const ACTION_VERBS: readonly string[] = [
   'presented',
   'published',
   'standardized',
-  // Russian, perfective past -- the form that reads as a completed result
+  // Russian, perfective past: reads as a completed result
   'автоматизировал',
   'внедрил',
   'вывел',
@@ -133,10 +127,7 @@ export const ACTION_VERBS: readonly string[] = [
   'улучшила',
 ];
 
-/**
- * Weak openings. These describe a job description rather than an achievement,
- * and they are the single most common defect in a mid-level resume.
- */
+/** Openings that describe duties instead of results. */
 export const WEAK_OPENINGS: readonly string[] = [
   'responsible for',
   'responsibilities included',
@@ -175,7 +166,7 @@ export const WEAK_OPENINGS: readonly string[] = [
   'работала с',
 ];
 
-/** Empty praise. Says nothing a recruiter can verify, and costs space. */
+/** Empty praise a recruiter cannot verify. */
 export const CLICHES: readonly string[] = [
   'hard worker',
   'hard-working',
@@ -220,19 +211,13 @@ export const CLICHES: readonly string[] = [
   'нацеленность на результат',
 ];
 
-/**
- * Word boundaries throughout this file are written as Unicode lookarounds.
- *
- * `\b` is defined over ASCII word characters, so `/\bбыл\b/` matches nothing at
- * all -- silently, and only for the Russian half of every vocabulary. `\w` has
- * the same defect and is replaced by an explicit letter class.
- */
+/** Boundaries use Unicode lookarounds, not `\b` or `\w`, so Cyrillic matches. */
 const L = '[\\p{L}\\p{N}]';
 const START = `(?<!${L})`;
 const END = `(?!${L})`;
 const WORD = `\\p{L}+`;
 
-/** First-person markers. A resume is written in implied first person already. */
+/** First-person markers; resumes are already written in implied first person. */
 export const FIRST_PERSON: readonly RegExp[] = [
   new RegExp(
     `${START}I\\s+(?:was|am|have|had|led|built|created|managed|developed|worked|did)${END}`,
@@ -248,7 +233,6 @@ export const FIRST_PERSON: readonly RegExp[] = [
   new RegExp(`${START}мы\\s+(?:сделали|создали|разработали|запустили|внедрили)${END}`, 'iu'),
 ];
 
-/** Passive constructions: they hide who did the work. */
 export const PASSIVE_MARKERS: readonly RegExp[] = [
   new RegExp(`${START}(?:was|were|is|are|been|being)\\s+${WORD}(?:ed|en)${END}`, 'iu'),
   new RegExp(`${START}(?:has|have|had)\\s+been\\s+${WORD}(?:ed|en)${END}`, 'iu'),
@@ -256,10 +240,7 @@ export const PASSIVE_MARKERS: readonly RegExp[] = [
   new RegExp(`${START}${WORD}(?:лось|лись|ется|ются|ался|ались)${END}`, 'iu'),
 ];
 
-/**
- * Quantification signals: a number, a percentage, a money amount, a multiplier
- * or a magnitude word. Presence of any one makes a bullet measurable.
- */
+/** A number, percentage, money amount, multiplier or magnitude word. */
 export const QUANTIFICATION: readonly RegExp[] = [
   /\d+\s*%/u,
   new RegExp(`[$€₽₸£¥]\\s*\\d|\\d+\\s*(?:\\$|€|₽|₸|(?:k|m|млн|тыс|млрд)${END})`, 'iu'),

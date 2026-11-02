@@ -5,12 +5,7 @@ import type { SectionKind } from '@/entities/resume/@x/analysis';
 
 import { fail, pass, skip, type Rule, type RuleContext } from '../../model/types';
 
-/**
- * Structure: are the expected parts present, complete and in a usable order.
- *
- * A recruiter spends six to eight seconds on the first pass. Everything here is
- * about whether that pass finds what it is looking for where it expects it.
- */
+/** Structure: are the expected sections present, complete and in order. */
 
 function has(context: RuleContext, kind: SectionKind): boolean {
   return context.resume.sections.some(

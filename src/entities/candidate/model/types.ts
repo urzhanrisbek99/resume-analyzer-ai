@@ -1,20 +1,8 @@
-/**
- * A candidate as a recruiter sees them in a shortlist.
- *
- * This is a flat projection, not a second copy of the resume. The screening
- * table needs to sort and compare dozens of rows, and a recruiter deciding who
- * to call first needs the same five facts about each one -- not a document.
- */
+/** Flat shortlist row: the few facts a recruiter compares across candidates. */
 
 export type CandidateSeniority = 'junior' | 'middle' | 'senior' | 'lead' | 'unknown';
 
-/**
- * Things worth knowing before opening the resume.
- *
- * Deliberately neutral in wording. A gap is a question to ask, not a verdict,
- * and a tool that encourages recruiters to discard people on a flag alone would
- * be doing harm at scale.
- */
+/** Worded neutrally on purpose: a flag is a question to ask, not a verdict. */
 export type CandidateFlag =
   /** The file barely parses; an ATS will mangle it too. */
   | 'ats-unreadable'

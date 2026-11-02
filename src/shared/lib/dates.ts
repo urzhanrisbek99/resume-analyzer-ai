@@ -1,10 +1,7 @@
 /**
- * Resume date parsing.
- *
- * Resumes express periods in a dozen shapes across two languages, and career
- * rules (tenure, gaps, progression) are only as good as this parser. It returns
- * a normalised value plus the raw text and a format tag, so the engine can also
- * report *inconsistent* date formatting.
+ * Resume date parsing in English, Russian and major European languages.
+ * Results keep the raw text and a format tag so inconsistent date formats
+ * can be reported.
  */
 
 export interface YearMonth {
@@ -52,7 +49,7 @@ const MONTHS: Record<string, number> = {
   november: 11,
   dec: 12,
   december: 12,
-  // Russian, both nominative and genitive forms as they appear in resumes.
+  // Russian, nominative and genitive forms.
   янв: 1,
   январь: 1,
   января: 1,
@@ -90,9 +87,7 @@ const MONTHS: Record<string, number> = {
   дек: 12,
   декабрь: 12,
   декабря: 12,
-  // French. International resumes are often written in the local language even
-  // when the role is not, and a month the table does not know costs the whole
-  // date -- which costs the tenure, the gaps and the progression with it.
+  // French
   janvier: 1,
   mars: 3,
   mai: 5,
@@ -153,7 +148,6 @@ const CURRENT_MARKERS = [
   'нв',
   'сейчас',
   'текущее время',
-  // French, German, Spanish, Italian
   "aujourd'hui",
   'a ce jour',
   'en cours',
@@ -167,16 +161,9 @@ const CURRENT_MARKERS = [
 ];
 
 /**
- * Separators a range may use, including the word forms.
- *
- * The plain hyphen needs care: it separates a range in "2020-2022" and joins
- * one endpoint in "2020-03". It counts as a separator when it has whitespace on
- * either side (a numeric date never does), or when what follows is a four-digit
- * year or a word. Typographic dashes carry no such ambiguity.
- *
- * The word alternatives end with a Unicode-aware boundary rather than `\b`,
- * which is defined over ASCII word characters and therefore never matches after
- * a Cyrillic letter.
+ * Range separators, including word forms. A plain hyphen counts only with
+ * whitespace around it or before a year or word, so "2020-03" stays one date.
+ * Word forms end in a Unicode-aware boundary: `\b` never matches after Cyrillic.
  */
 const RANGE_SEPARATOR =
   /\s*(?:[\u2010-\u2015\u2212~]|--|(?<=\s)-|-(?=\s)|-(?=\s*(?:\d{4}(?!\d)|\p{L}))|(?:to|\u0434\u043e|\u043f\u043e)(?![\p{L}\p{N}]))\s*/iu;
@@ -184,13 +171,7 @@ const RANGE_SEPARATOR =
 const MIN_YEAR = 1950;
 const MAX_YEAR = 2100;
 
-/**
- * Normalise an endpoint for lookup.
- *
- * Diacritics are stripped so the month table needs one plain entry per name
- * rather than one per spelling: fevrier and février, marz and märz, aout and
- * août all collapse to the same key.
- */
+/** Strips diacritics so "février" and "fevrier" share one month entry. */
 function cleanToken(input: string): string {
   return input
     .normalize('NFKD')
@@ -201,7 +182,6 @@ function cleanToken(input: string): string {
     .trim();
 }
 
-/** Literal text used inside a constructed pattern. */
 function escapeForPattern(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -210,24 +190,13 @@ function plausibleYear(value: number): boolean {
   return value >= MIN_YEAR && value <= MAX_YEAR;
 }
 
-/**
- * "Present" in all the ways resumes write it.
- *
- * Abbreviations are compared with their dots removed, because `cleanToken`
- * strips the trailing one: "н.в." arrives as "н.в" and would otherwise miss a
- * vocabulary entry written with the final dot.
- */
+/** Dots are ignored because `cleanToken` strips the final one: "н.в." -> "н.в". */
 function isCurrentMarker(input: string): boolean {
   const token = cleanToken(input).replace(/\s+/g, ' ');
   const bare = token.replace(/\./g, '');
 
-  /*
-   * A prefix match alone is far too loose. "now, Wayfinder Logistics, lead
-   * product designer. Rebuilt the dispatch console" starts with "now", so a
-   * whole sentence of prose was read as an open-ended date, and the line above
-   * it stopped being recognised as a section heading. An endpoint is a marker
-   * plus at most a little trailing punctuation, never a clause.
-   */
+  // A prefix match alone would read "now, Wayfinder Logistics, ..." as a date.
+  // An endpoint is a marker plus at most a little trailing punctuation.
   const SLACK = 2;
 
   return CURRENT_MARKERS.some((marker) => {
@@ -275,7 +244,6 @@ export function parseYearMonth(input: string): { value: YearMonth; format: DateF
     }
   }
 
-  // Bare year.
   const bare = /^(\d{4})$/.exec(token);
   if (bare) {
     const year = Number(bare[1]);
@@ -285,10 +253,7 @@ export function parseYearMonth(input: string): { value: YearMonth; format: DateF
   return null;
 }
 
-/**
- * Parse a full period. Returns null when the text holds no recognisable date,
- * so callers can fall back to other signals rather than inventing a range.
- */
+/** Returns null when the text holds no recognisable date. */
 export function parseDateRange(input: string): DateRange | null {
   const raw = input.trim();
   if (raw.length === 0) return null;
@@ -330,23 +295,14 @@ export function parseDateRange(input: string): DateRange | null {
   return null;
 }
 
-/** Find every date range mentioned in a block of text, in order. */
 /**
- * Find every date range mentioned in a block of text, in order.
- *
- * An endpoint is a year, a month name with a year, an ISO pair, or a numeric
- * month before the year. That last form is the one resumes use most outside
- * English-speaking countries, and leaving it out dropped the month from
- * "01/2022 - Present" and lost "06/2019 - 12/2021" entirely.
+ * Finds every date range in a block of text, in order. Endpoints may be a
+ * year, "Month YYYY", "YYYY-MM" or "MM/YYYY" (common outside English-speaking
+ * countries).
  */
 export function findDateRanges(text: string): DateRange[] {
   const endpoint = String.raw`(?:(?:\p{L}{3,10}\.?\s+)?\d{4}(?:[-./]\d{1,2})?|\d{1,2}[-./]\d{4})`;
-  /*
-   * Built from the same vocabulary `isCurrentMarker` reads, never a second copy
-   * of it. The two had already drifted: "aujourd'hui" was recognised when a
-   * range was parsed directly but not when one was found inside a document, so
-   * every French resume lost its current role.
-   */
+  // Same vocabulary as `isCurrentMarker`, so the two cannot drift apart.
   const current = CURRENT_MARKERS.map(escapeForPattern)
     .sort((a, b) => b.length - a.length)
     .join('|');
@@ -389,10 +345,7 @@ export interface EmploymentGap {
   months: number;
 }
 
-/**
- * Merge overlapping periods, then report the holes between them. Overlaps are
- * normal (parallel contracts) and must not be reported as gaps.
- */
+/** Overlapping periods (parallel contracts) are merged, not reported as gaps. */
 export function findGaps(ranges: DateRange[], minMonths = 4): EmploymentGap[] {
   const intervals = ranges
     .map((range) => {
@@ -425,7 +378,7 @@ export function findGaps(ranges: DateRange[], minMonths = 4): EmploymentGap[] {
   return gaps;
 }
 
-/** Total months covered by the union of all ranges (no double counting). */
+/** Months covered by the union of all ranges. */
 export function totalMonths(ranges: DateRange[], reference: Date = new Date()): number {
   const intervals = ranges
     .map((range) => {

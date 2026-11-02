@@ -2,14 +2,7 @@ import { normalize } from '@/shared/lib/text';
 
 import { fail, pass, skip, type Rule } from '../../model/types';
 
-/**
- * Keyword and job-description alignment.
- *
- * Every rule here skips when no job advert was supplied: scoring a resume
- * against requirements nobody stated would be inventing a standard. With an ad
- * present, this becomes the dimension a recruiter cares about most, because it
- * answers the only question they have -- does this person match the role.
- */
+/** Job-ad alignment. Every rule skips when no job ad was supplied. */
 
 export const keywordRules: Rule[] = [
   {

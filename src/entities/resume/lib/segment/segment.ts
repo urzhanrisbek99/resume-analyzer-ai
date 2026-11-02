@@ -9,27 +9,17 @@ import type { PositionedLine } from '../extract/types';
 import { classifyHeading } from './headings';
 
 /**
- * Section segmentation.
+ * Splits resume text into sections.
  *
- * Two independent paths, and the second is the reason this tool works on resumes
- * that ignore every template:
- *
- *   1. Headings. Typography plus a bilingual vocabulary. Handles the 80% case.
- *   2. Content inference. When a document has no headings at all -- or only
- *      unrecognisable ones -- each block is classified by what is inside it:
- *      date ranges and bullets mean experience, a dense comma-separated token
- *      list means skills, degree vocabulary means education.
- *
- * Path 2 also repairs individual unlabelled sections left over from path 1, so a
- * resume that heads its job history "Чем я занимался" still scores correctly.
+ * 1. By headings: typography plus a bilingual heading vocabulary.
+ * 2. By content, when there are no usable headings: dates and bullets mean
+ *    experience, short comma-separated items mean skills, degree words mean
+ *    education. Also used to name sections with unrecognised headings.
  */
 
 export interface SegmentationResult {
   sections: ResumeSection[];
-  /**
-   * 0-1: the share of body text that landed in a confidently typed section.
-   * The LLM segmenter is offered to the user when this is low.
-   */
+  /** 0-1 share of body text in a confidently typed section. */
   confidence: number;
   usedContentInference: boolean;
 }
@@ -44,7 +34,7 @@ interface IndexedLine {
 
 const MAX_HEADING_CHARS = 64;
 const MAX_HEADING_WORDS = 7;
-/** Below this, the caller should offer LLM segmentation. */
+/** Below this, the UI offers LLM segmentation. */
 export const LOW_CONFIDENCE_THRESHOLD = 0.55;
 
 export function segmentResume(
@@ -68,7 +58,7 @@ export function segmentResume(
   const sections: ResumeSection[] = [];
   let order = 0;
 
-  // Everything above the first heading is the header block: name, title, contacts.
+  // Text above the first heading is the header: name, title, contacts.
   const firstHeading = headings[0]!;
   if (firstHeading.line.start > 0) {
     const text = plainText.slice(0, firstHeading.line.start).trim();
@@ -97,7 +87,7 @@ export function segmentResume(
     let kind = heading.kind;
     let confidence = heading.confidence;
 
-    // An unrecognised heading is still a real boundary. Name it from content.
+    // An unrecognised heading is still a boundary; name the section from its content.
     if (kind === 'unknown' && text.length > 0) {
       const inferred = inferKind(text);
       if (inferred) {
@@ -145,11 +135,7 @@ function indexLines(plainText: string): IndexedLine[] {
 interface TypographyIndex {
   byText: Map<string, PositionedLine>;
   medianFontSize: number;
-  /**
-   * False for plain text and for PDFs that set everything in one weight and
-   * size. Heading detection then has no typographic evidence to lean on and
-   * falls back to structural cues instead.
-   */
+  /** False when all text shares one weight and size, e.g. plain text. */
   hasSignal: boolean;
 }
 
@@ -190,20 +176,13 @@ function findHeadings(lines: IndexedLine[], typography: TypographyIndex): Headin
 
     const classified = classifyHeading(text);
 
-    // A known heading needs no typographic corroboration.
     if (classified) {
       hits.push({ line, kind: classified.kind, confidence: classified.confidence });
       return;
     }
 
-    /*
-     * The first line of a resume is the candidate's name. It is usually the
-     * boldest, largest line in the document, which is exactly what heading
-     * detection looks for -- and promoting it to a heading moves it out of the
-     * header block, the one place the name parser reads. The vocabulary check
-     * above still runs, so a document that genuinely opens with "SUMMARY" is
-     * unaffected.
-     */
+    // The first line is the candidate's name and usually the most prominent one.
+    // Treating it as a heading would hide it from the name parser.
     if (i === firstContentIndex) return;
 
     if (!looksLikeHeading(text)) return;
@@ -223,22 +202,13 @@ function findHeadings(lines: IndexedLine[], typography: TypographyIndex): Headin
 
     const isShouted = uppercaseRatio(text) > 0.7;
 
-    /*
-     * With no typographic evidence anywhere in the document, "looks like a
-     * heading" has to be decided structurally. A line qualifies when it is
-     * short, sits alone after a blank line, and introduces a real block of
-     * text. The very first line is excluded: that is the candidate's name,
-     * which satisfies every other test.
-     *
-     * This is what makes lowercase, template-free resumes work -- headings
-     * like "where i have been" carry no capitals and no vocabulary match.
-     */
+    // Without typography, a heading is a short line after a blank line that
+    // introduces a block. Handles lowercase headings like "where i have been".
     const isStructuralHeading =
       !typography.hasSignal && introducesBlock(lines, i) && !looksLikeJobHeader(text, lines, i);
 
     if (!isEmphasised && !isShouted && !isStructuralHeading) return;
 
-    // A bold or capitalised job title is still a job title.
     if ((isEmphasised || isShouted) && looksLikeJobHeader(text, lines, i)) return;
 
     const confidence = isEmphasised ? 0.6 : isShouted ? 0.5 : 0.45;
@@ -249,15 +219,8 @@ function findHeadings(lines: IndexedLine[], typography: TypographyIndex): Headin
 }
 
 /**
- * Job titles that have been mistaken for section headings.
- *
- * "Staff Software Engineer, Razorpay, Bangalore" is short, sits after a blank
- * line and introduces a block -- every structural signal a heading has. Reading
- * it as one empties the experience section and turns each job into its own
- * orphan section, which is how a two-job resume came out with zero.
- *
- * Two signals separate them. A job header names a role, and it is followed by
- * its dates on the next line. A section heading does neither.
+ * "Staff Engineer, Razorpay, Bangalore" passes every structural heading test.
+ * A job header names a role and has dates on the next line; a heading does not.
  */
 function looksLikeJobHeader(text: string, lines: IndexedLine[], index: number): boolean {
   if (JOB_TITLE_RE.test(text)) return true;
@@ -265,7 +228,7 @@ function looksLikeJobHeader(text: string, lines: IndexedLine[], index: number): 
   const next = lines.slice(index + 1).find((line) => !line.isBlank);
   if (!next) return false;
 
-  // A line that is nothing but a period belongs to the entry above it.
+  // A lone period belongs to the entry above it.
   const nextText = squish(next.text);
   const parsed = parseDateRange(nextText);
   return parsed !== null && parsed.rawText.length >= nextText.length - 2;
@@ -307,19 +270,10 @@ const JOB_TITLE_RE = wordPattern([
   'директор',
 ]);
 
-/** Minimum body a structural heading must introduce to be believable. */
 const MIN_BLOCK_LINES = 2;
-/**
- * A single short line is enough body for a heading to introduce, because a
- * section can legitimately hold one: "Where I studied" over one university
- * line. The job-header guard is what keeps this from swallowing job titles.
- */
+/** One short line is enough: a section can hold a single entry. */
 const MIN_BLOCK_WORDS = 6;
 
-/**
- * Whether the lines below `index` form a block substantial enough to be a
- * section body rather than the next line of a contact header.
- */
 function introducesBlock(lines: IndexedLine[], index: number): boolean {
   let blockLines = 0;
   let blockWords = 0;
@@ -339,25 +293,18 @@ function introducesBlock(lines: IndexedLine[], index: number): boolean {
   return false;
 }
 
-/**
- * A heading names a topic. It is short, carries no sentence punctuation, and
- * holds no dates -- a bold "Senior Engineer, Acme (2021-2024)" is a job title.
- */
+/** Headings are short, unpunctuated and undated. */
 function looksLikeHeading(text: string): boolean {
   if (wordCount(text) > MAX_HEADING_WORDS) return false;
   if (/[.!?;,]$/.test(text)) return false;
   if (/@|https?:\/\//.test(text)) return false;
   if (findDateRanges(text).length > 0) return false;
   if (/\d{4}/.test(text)) return false;
-  // Bullet glyphs mark list items, never headings.
   if (/^[•·◦‣⁃*]/u.test(text)) return false;
   return true;
 }
 
-/**
- * Two headings with nothing between them means the first one was a false
- * positive -- typically a bold job title immediately above a real heading.
- */
+/** Two adjacent headings: the first is usually a bold job title. */
 function dropSpuriousHeadings(hits: HeadingHit[]): HeadingHit[] {
   return hits.filter((hit, i) => {
     const next = hits[i + 1];
@@ -368,9 +315,7 @@ function dropSpuriousHeadings(hits: HeadingHit[]): HeadingHit[] {
   });
 }
 
-/* ------------------------------------------------------------------------- */
-/* Content inference: the path for resumes with no usable headings            */
-/* ------------------------------------------------------------------------- */
+// --- Content inference --------------------------------------------------
 
 const DEGREE_KEYWORDS = [
   'university',
@@ -442,11 +387,8 @@ export interface KindInference {
 }
 
 /**
- * Classify a block of text by what it contains rather than by its heading.
- *
- * Order matters: the cheapest, most decisive signals are tested first, and
- * `experience` is checked before `education` because education blocks also carry
- * date ranges.
+ * Classifies a block by its content. Experience is checked before education
+ * because education blocks also carry date ranges.
  */
 export function inferKind(text: string): KindInference | null {
   const lower = normalize(text);
@@ -455,8 +397,7 @@ export function inferKind(text: string): KindInference | null {
 
   const dateRanges = findDateRanges(text);
 
-  // "B.Sc." and "BSc" are the same credential, and resumes use both. Comparing
-  // without the dots keeps one entry per qualification instead of four.
+  // "B.Sc." and "BSc" are the same credential.
   const flat = lower.replace(/\./g, '');
   const hits = (keywords: readonly string[]) =>
     keywords.filter(
@@ -476,14 +417,8 @@ export function inferKind(text: string): KindInference | null {
 
   const bulletCount = (text.match(/^\s*[•·◦‣⁃*-]\s+/gmu) ?? []).length;
 
-  /*
-   * A dated block with a sentence or more behind it is a job entry. The bar was
-   * forty words, which a three-line entry written as prose does not clear --
-   * such blocks fell through to the skills branch below, because prose has
-   * commas in it, and an entire employment history was read as a list of
-   * technologies.
-   */
-  // An entry that opens with its own dates needs less text to be believable:
+  // A dated block with bullets or a sentence of text is a job entry. Keep the
+  // word bar low: short prose entries otherwise fall through to "skills".
   // "2016 to 2019, freelance. interfaces for small operators." is a job.
   const opensWithDate = findDateRanges(text.slice(0, 40)).length > 0;
 
@@ -495,12 +430,8 @@ export function inferKind(text: string): KindInference | null {
     return { kind: 'education', confidence: 0.65 };
   }
 
-  /*
-   * A skills block is a dense list of short items. Counting separators alone is
-   * not enough -- prose is full of commas too. What separates them is the length
-   * of what sits between the separators: "TypeScript, React, Jest" has short
-   * items and a paragraph does not. A skills list also carries no dates.
-   */
+  // Skills: many separators with short items between them, and no dates.
+  // Prose has commas too, but long runs between them.
   const separators = (text.match(/[,;|•·]|\s{3,}/gu) ?? []).length;
   if (separators >= 4 && blockWords < 140 && dateRanges.length === 0) {
     const items = text
@@ -516,7 +447,6 @@ export function inferKind(text: string): KindInference | null {
     return { kind: 'contacts', confidence: 0.7 };
   }
 
-  // Prose with no dates and no lists, near the top, reads as a summary.
   if (dateRanges.length === 0 && separators <= 3 && blockWords >= 15 && blockWords <= 120) {
     return { kind: 'summary', confidence: 0.55 };
   }
@@ -524,7 +454,6 @@ export function inferKind(text: string): KindInference | null {
   return null;
 }
 
-/** Split on blank lines, then name each block from its content. */
 function segmentByContent(plainText: string, lines: IndexedLine[]): ResumeSection[] {
   const blocks: Array<{ start: number; end: number; text: string }> = [];
   let current: { start: number; end: number } | null = null;
@@ -549,7 +478,7 @@ function segmentByContent(plainText: string, lines: IndexedLine[]): ResumeSectio
     const trimmed = block.text.trim();
     if (trimmed.length === 0) return;
 
-    // The first block of a resume is the header, whatever it contains.
+    // The first block is the header, whatever it contains.
     const inferred =
       i === 0 ? { kind: 'contacts' as SectionKind, confidence: 0.7 } : inferKind(trimmed);
 
@@ -568,10 +497,7 @@ function segmentByContent(plainText: string, lines: IndexedLine[]): ResumeSectio
   return mergeAdjacentSameKind(sections);
 }
 
-/**
- * Consecutive blocks of the same kind are one section. Without this, a job
- * history written as one block per employer becomes five experience sections.
- */
+/** One block per employer should still give one experience section. */
 function mergeAdjacentSameKind(sections: ResumeSection[]): ResumeSection[] {
   const merged: ResumeSection[] = [];
 
@@ -595,7 +521,6 @@ function mergeAdjacentSameKind(sections: ResumeSection[]): ResumeSection[] {
   return merged;
 }
 
-/** Share of text sitting in a section whose kind was identified with confidence. */
 function coverageConfidence(sections: ResumeSection[], totalLength: number): number {
   if (totalLength === 0) return 0;
 

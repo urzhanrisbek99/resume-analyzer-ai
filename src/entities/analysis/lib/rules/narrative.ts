@@ -4,14 +4,7 @@ import { fail, pass, skip, type Rule } from '../../model/types';
 
 import { SHORT_STINT_MONTHS } from '../metrics';
 
-/**
- * Narrative: does the career story hold together.
- *
- * These rules are advisory by design. A gap can be parental leave, illness or a
- * deliberate sabbatical, and none of that is a defect -- but an *unexplained*
- * gap is a question the recruiter answers themselves, usually unkindly. The
- * findings say so plainly instead of implying the candidate did something wrong.
- */
+/** Career narrative: gaps, tenure, progression. Advisory, worded neutrally. */
 
 /** Gaps shorter than this are normal between jobs and are not reported. */
 const REPORTABLE_GAP_MONTHS = 6;

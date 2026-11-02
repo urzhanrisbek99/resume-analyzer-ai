@@ -1,19 +1,9 @@
 import type { CandidateSummary } from '../model/types';
 
 /**
- * Ranking.
- *
- * The ordering has to be explainable, because a recruiter who cannot see why
- * someone is first will not trust the list and will read all forty resumes
- * anyway. `rankBreakdown` returns the components so the UI can show them.
- *
- * With a vacancy supplied, coverage of the required skills dominates: that is
- * the question the recruiter actually asked. Resume quality still counts, but
- * it cannot promote a candidate who is missing half the must-haves -- a clean
- * resume for the wrong role is still the wrong role.
- *
- * Without a vacancy there is nothing to match against, so the ranking falls
- * back to resume quality alone and says so.
+ * Explainable ranking: `rankBreakdown` exposes the components. With a job ad,
+ * required-skill coverage dominates, so a clean resume cannot outrank one that
+ * meets the must-haves. Without one, ranking uses resume quality only.
  */
 
 export interface RankBreakdown {
@@ -83,7 +73,6 @@ export interface SortState {
   direction: SortDirection;
 }
 
-/** The column each sort key reads, as a comparable number or string. */
 function sortValue(candidate: CandidateSummary, key: SortKey): number | string {
   switch (key) {
     case 'rank':
@@ -93,8 +82,7 @@ function sortValue(candidate: CandidateSummary, key: SortKey): number | string {
     case 'overallScore':
       return candidate.overallScore;
     case 'jobMatchScore':
-      // Unscored candidates sort last in either direction rather than as zero,
-      // which would read as "scored badly".
+      // Unscored candidates sort last in both directions; 0 would read as "scored badly".
       return candidate.jobMatchScore ?? Number.NEGATIVE_INFINITY;
     case 'experienceMonths':
       return candidate.experienceMonths;
@@ -105,12 +93,7 @@ function sortValue(candidate: CandidateSummary, key: SortKey): number | string {
   }
 }
 
-/**
- * Sort a shortlist.
- *
- * Ties break on rank and then on file name so the order is fully determined:
- * a table that reshuffles equal rows between renders looks broken.
- */
+/** Ties break on rank, then file name, so equal rows never reshuffle. */
 export function sortCandidates(
   candidates: readonly CandidateSummary[],
   { key, direction }: SortState,
@@ -139,5 +122,4 @@ export function sortCandidates(
   });
 }
 
-/** Default view: best fit first. */
 export const DEFAULT_SORT: SortState = { key: 'rank', direction: 'desc' };

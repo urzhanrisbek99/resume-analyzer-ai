@@ -6,16 +6,8 @@ import type { ScreenRequest, ScreenResponse } from './protocol';
 import { screenFile } from './screen-file';
 
 /**
- * The screening worker.
- *
- * Does nothing of its own: it receives a file, calls the same `screenFile` the
- * main thread would, and posts back the result. Keeping the worker this thin is
- * the point -- all the logic stays in a plain function that runs and is tested
- * without one.
- *
- * pdf.js spawns a worker of its own from in here. Nested workers are supported
- * everywhere this application runs; where they are not, the pool catches the
- * failure and falls back to the main thread rather than losing the file.
+ * Thin wrapper around `screenFile`. pdf.js spawns a nested worker from here;
+ * if that fails, the pool falls back to the main thread.
  */
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;

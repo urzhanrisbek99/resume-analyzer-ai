@@ -20,16 +20,8 @@ import { computeMetrics } from './metrics';
 import { ALL_RULES } from './rules';
 
 /**
- * The scoring engine.
- *
- * Pure and deterministic: the same document always produces the same score, the
- * same findings and the same ordering. That is what makes the output trustworthy
- * enough to show a number at all, and what lets the whole thing be covered by
- * snapshot tests over a corpus of fixtures.
- *
- * Scoring works by subtraction. Each dimension starts at 100 and loses points as
- * its rules fire; a rule that does not apply is excluded rather than counted as
- * a pass, so a resume is never rewarded for a check that never ran.
+ * Deterministic scoring engine. Each dimension starts at 100 and loses points
+ * as rules fire. Skipped rules are excluded, not counted as passes.
  */
 
 export interface AnalyseOptions {
@@ -108,10 +100,7 @@ export function analyseResume(
   };
 }
 
-/**
- * A rule that throws is a bug in that rule, not a reason to lose the whole
- * report. It is recorded as skipped and the remaining rules still run.
- */
+/** A throwing rule is logged and skipped; the rest of the report still runs. */
 function runRule(rule: Rule, context: RuleContext) {
   try {
     return rule.evaluate(context);
@@ -154,12 +143,9 @@ function emptyCounts(): Record<Severity, number> {
 }
 
 /**
- * Weighted average across dimensions, ignoring dimensions where no rule ran.
- *
- * Without a job advert every keyword rule skips. Counting that dimension as a
- * perfect 100 would inflate the score; counting it as 0 would punish the user
- * for not supplying something optional. Dropping it and renormalising the
- * remaining weights is the only honest option.
+ * Weighted average over dimensions where at least one rule ran. Without a job
+ * ad every keyword rule skips; that dimension is dropped and the weights
+ * renormalised instead of counting it as 0 or 100.
  */
 function weightedOverall(dimensions: DimensionScore[]): number {
   const scored = dimensions.filter((dimension) => dimension.rulesRun > 0);
@@ -177,10 +163,7 @@ const SEVERITY_RANK = new Map<Severity, number>(
   SEVERITY_ORDER.map((severity, index) => [severity, index]),
 );
 
-/**
- * Most severe first, then by how many points it costs, then by rule id so the
- * order is fully determined and snapshot tests do not flake.
- */
+/** Severity, then penalty, then rule id, so the order is fully deterministic. */
 function sortFindings(findings: Finding[]): Finding[] {
   return [...findings].sort((a, b) => {
     const bySeverity =

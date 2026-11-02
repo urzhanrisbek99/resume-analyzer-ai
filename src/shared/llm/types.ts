@@ -1,14 +1,8 @@
 import type { Result } from '@/shared/lib/result';
 
 /**
- * Language-model access, behind a provider interface.
- *
- * Nothing in the application talks to a vendor SDK. Features depend on
- * `LlmProvider` and receive whichever implementation the environment configures,
- * so swapping vendors, adding a self-hosted model, or stubbing the whole thing
- * out in tests touches one adapter file and no business logic.
- *
- * Everything here is server-side only: the API key never reaches the browser.
+ * Provider interface for language models. Features depend on `LlmProvider`,
+ * not on a vendor SDK. Server-side only.
  */
 
 export interface LlmMessage {

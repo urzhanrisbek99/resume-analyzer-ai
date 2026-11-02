@@ -1,11 +1,4 @@
-/**
- * Public API of the `analysis` entity.
- *
- * The scoring engine is framework-free, dependency-free and pure: it takes a
- * parsed resume and returns a result. Nothing here imports React, Next.js or
- * any network client, which is what lets the same code run in the browser, on
- * the server and inside a test with no adaptation.
- */
+/** Public API of `analysis`. Pure and framework-free: runs in browser, server and tests. */
 
 export type {
   AnalysisResult,

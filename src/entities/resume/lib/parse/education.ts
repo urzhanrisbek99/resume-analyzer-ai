@@ -4,12 +4,7 @@ import { normalize, squish, wordPattern } from '@/shared/lib/text';
 
 import type { EducationItem, LanguageProficiency } from '../../model/types';
 
-/**
- * Education, certifications and language proficiency.
- *
- * Simpler than experience parsing: education blocks are short and the
- * institution is identifiable by vocabulary rather than by position.
- */
+/** Education, certifications and language proficiency. */
 
 const INSTITUTION_MARKERS = [
   'university',
@@ -179,13 +174,7 @@ const LANGUAGE_NAMES: Record<string, string> = {
   арабский: 'Arabic',
 };
 
-/**
- * Language proficiency.
- *
- * Reported per language so the international-readiness rules can check that an
- * English level is stated at all -- a resume aimed at a foreign employer that
- * never mentions English forces the recruiter to guess, and they guess low.
- */
+/** Per-language levels, so international rules can check English is stated. */
 export function parseLanguages(sectionText: string, sectionOffset: number): LanguageProficiency[] {
   const found = new Map<string, LanguageProficiency>();
   let offset = 0;

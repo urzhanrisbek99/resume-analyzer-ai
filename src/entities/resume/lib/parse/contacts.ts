@@ -10,26 +10,17 @@ import {
 import type { ContactBlock, LinkKind, ResumeLink, SensitiveField } from '../../model/types';
 
 /**
- * Contact block parsing.
+ * Contact block parsing. Also detects personal data (photo, birth date,
+ * marital status) that is normal locally but gets a resume discarded in the
+ * US, UK or EU; the rule layer explains why.
  *
- * Also the place where personal data that hurts a candidate abroad is detected.
- * A photo, a date of birth or a marital status is normal on a CV in this region
- * and a liability in the US, UK or EU, where recruiters are trained to discard
- * resumes carrying protected characteristics. The rule layer explains that; this
- * layer only reports what is present.
- *
- * Every vocabulary here goes through `wordPattern`, never through `\b`: the
- * ASCII-only boundary silently fails on Cyrillic, which would switch off the
- * Russian half of the detection without any visible error.
+ * Vocabularies use `wordPattern`, not `\b`, so Cyrillic matches.
  */
 
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]*\w/g;
 /**
- * Deliberately loose: resumes write phone numbers a dozen ways.
- *
- * Separators repeat, because "(415) 555-0142" puts a bracket and a space
- * between two digits and "+7 (999) 123-45-67" does it twice. Allowing only
- * one separator character silently missed both.
+ * Deliberately loose. Separators may repeat: "+7 (999) 123-45-67" puts a
+ * bracket and a space between digits.
  */
 const PHONE_RE = /(?:\+?\d{1,3}[\s().-]{0,3})?(?:\d[\s().-]{0,3}){8,14}\d/g;
 const URL_RE =
@@ -229,10 +220,7 @@ function firstMatch(text: string, pattern: RegExp): string | null {
   return match?.[0] ?? null;
 }
 
-/**
- * Reject digit runs that are really dates or money. A phone number has at least
- * ten digits and is not immediately preceded by a currency symbol.
- */
+/** Rejects dates and money: a phone has 10+ digits and no currency before it. */
 function findPhone(text: string): string | null {
   for (const match of text.matchAll(PHONE_RE)) {
     const candidate = match[0];
@@ -265,7 +253,7 @@ function collectLinks(text: string, embeddedLinks: string[]): ResumeLink[] {
     found.set(key, {
       kind: matched?.kind ?? (isPortfolioLike(url) ? 'portfolio' : 'other'),
       url,
-      // A recruiter has to be able to click it. A bare handle is not a link.
+      // A bare handle is not clickable, so it is not a link.
       isResolvable: /^https?:\/\//i.test(url) || /^www\./i.test(url) || /\.[a-z]{2,}\//i.test(url),
     });
   };
@@ -281,11 +269,8 @@ function isPortfolioLike(url: string): boolean {
 }
 
 /**
- * The candidate name.
- *
- * Taken from the top of the document: two to four capitalised words, no digits,
- * no contact punctuation. An ALL CAPS name is common and must still match, so
- * casing is checked as "not lowercase" rather than "title case".
+ * Two to four capitalised words at the top, no digits or contact punctuation.
+ * Casing is checked as "not lowercase" so ALL CAPS names still match.
  */
 function findName(headerText: string, email: string | null): string | null {
   const candidates = headerText

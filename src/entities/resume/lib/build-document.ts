@@ -18,11 +18,8 @@ import { parseExperience } from './parse/experience';
 import { segmentResume } from './segment/segment';
 
 /**
- * Assemble the normalised document from a raw extraction.
- *
- * This is the seam the whole product is built on: everything above it -- every
- * rule, every score, the entire UI -- reads `ResumeDocument` and never touches a
- * file format. Adding a new input format means adding an extractor, nothing else.
+ * Builds the normalised document from a raw extraction. Everything above
+ * reads `ResumeDocument` only; a new input format needs only an extractor.
  */
 
 export interface BuildDocumentInput {
@@ -113,12 +110,9 @@ export function buildResumeDocument(input: BuildDocumentInput): ResumeDocument {
 }
 
 /**
- * Everything above the first substantive section.
- *
- * Taken as a span of the document rather than as a section's text, because the
- * name may itself have been read as a heading -- it is typically the largest,
- * boldest line on the page -- and a section's `text` excludes its heading.
- * Slicing from the start keeps the name wherever segmentation put it.
+ * Everything above the first substantive section, sliced from the document
+ * start: the name may have been read as a heading, and section text excludes
+ * its heading.
  */
 function headerBlock(sections: ResumeSection[], plainText: string): string {
   const body = sections.find(
@@ -135,23 +129,13 @@ function sectionsOf(sections: ResumeSection[], kind: SectionKind): ResumeSection
   return sections.filter((section) => section.kind === kind);
 }
 
-/**
- * Offset of a section body inside the document.
- *
- * `section.span.start` points at the heading; the parsed text begins after it,
- * so spans built from `section.text` would otherwise be shifted by the heading
- * length and highlight the wrong characters in the preview.
- */
+/** `section.span.start` points at the heading; the body text starts after it. */
 function bodyOffset(section: ResumeSection, plainText: string): number {
   const found = plainText.indexOf(section.text, section.span.start);
   return found === -1 ? section.span.start : found;
 }
 
-/**
- * Skills come from the skills section when there is one, and from the whole
- * document otherwise -- a resume with no skills section still demonstrates
- * technologies inside its job bullets, and keyword matching must see them.
- */
+/** Without a skills section, scan the whole document: bullets still name technologies. */
 function collectSkills(sections: ResumeSection[], plainText: string): SkillItem[] {
   const skillSections = sectionsOf(sections, 'skills');
   const items = new Map<string, SkillItem>();
@@ -173,8 +157,7 @@ function collectSkills(sections: ResumeSection[], plainText: string): SkillItem[
     for (const section of skillSections) {
       addFrom(section.text, bodyOffset(section, plainText));
 
-      // Keep comma-separated entries the taxonomy does not know: a niche tool is
-      // still a keyword a recruiter may search for.
+      // Keep entries the taxonomy does not know; a niche tool is still a keyword.
       for (const raw of section.text.split(/[,;|•·\n]/u)) {
         const token = squish(raw.replace(/^[\s\-–—*]+/u, ''));
         if (token.length < 2 || token.length > 40) continue;

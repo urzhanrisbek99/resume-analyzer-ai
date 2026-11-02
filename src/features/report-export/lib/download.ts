@@ -1,12 +1,6 @@
 'use client';
 
-/**
- * Hand the user a file.
- *
- * An object URL and a synthetic click, which is the only way a browser lets a
- * page produce a download from data it generated itself. The URL is revoked
- * afterwards so the blob is not pinned in memory for the life of the tab.
- */
+/** Downloads generated data via an object URL, revoked afterwards. */
 
 export type ExportMimeType = 'text/markdown' | 'text/csv' | 'application/json';
 
@@ -27,12 +21,7 @@ export function downloadText(fileName: string, contents: string, mimeType: Expor
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/**
- * Strip what filesystems reject.
- *
- * A candidate name can legitimately contain a slash or a colon, and Windows
- * silently refuses the download rather than reporting why.
- */
+/** Windows silently refuses downloads whose names contain `/` or `:`. */
 export function safeFileName(name: string): string {
   const cleaned = name
     .replace(/[\\/:*?"<>|]/g, '-')

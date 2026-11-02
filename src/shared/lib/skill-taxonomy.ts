@@ -1,17 +1,9 @@
 import { normalize } from '@/shared/lib/text';
 
 /**
- * Skill vocabulary: canonical names, synonyms and categories.
- *
- * This is reference data, not behaviour. It lives in `shared` because two
- * entities need the same canonical form and neither owns it: the resume parser
- * canonicalises what a candidate wrote, and job-description matching compares
- * against the same canon. Putting it inside either entity would force the other
- * to cross-import it, which is a worse trade than a shared dictionary.
- *
- * Synonyms exist because "ReactJS", "React.js" and "React" must match a job ad
- * that says any one of them -- the single most common reason a keyword-matching
- * ATS scores a qualified candidate at zero.
+ * Skill vocabulary: canonical names, synonyms and categories. Lives in
+ * `shared` because both the resume and job-description entities need the same
+ * canonical forms. Synonyms let "ReactJS", "React.js" and "React" match.
  */
 
 export type SkillCategory =
@@ -258,7 +250,6 @@ export interface CanonicalSkill {
   category: SkillCategory;
 }
 
-/** Resolve a written skill to its canonical form, or null when unknown. */
 export function canonicalizeSkill(raw: string): CanonicalSkill | null {
   const entry = INDEX.get(
     normalize(raw)
@@ -268,10 +259,7 @@ export function canonicalizeSkill(raw: string): CanonicalSkill | null {
   return entry ? { canonical: entry.canonical, category: entry.category } : null;
 }
 
-/**
- * Find every known skill mentioned in free text, with word-boundary matching so
- * "Go" does not match inside "Google" and "C" does not match every letter C.
- */
+/** Word-boundary matching, so "Go" does not match inside "Google". */
 export function findSkillsInText(text: string): CanonicalSkill[] {
   const haystack = normalize(text);
   const found = new Map<string, CanonicalSkill>();

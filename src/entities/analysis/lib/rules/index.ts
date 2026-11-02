@@ -8,13 +8,7 @@ import { narrativeRules } from './narrative';
 import { parseabilityRules } from './parseability';
 import { structureRules } from './structure';
 
-/**
- * The rule registry.
- *
- * Adding a rule means adding one object to one array. Nothing else in the
- * system needs to change: the engine discovers rules from here, scoring adjusts
- * automatically, and the UI renders whatever findings come back.
- */
+/** Rule registry. The engine discovers rules from this array. */
 export const ALL_RULES: readonly Rule[] = [
   ...parseabilityRules,
   ...structureRules,

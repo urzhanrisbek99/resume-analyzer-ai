@@ -1,15 +1,8 @@
 import { z } from 'zod';
 
 /**
- * Server-side environment, validated once at module load.
- *
- * The deterministic engine has no environment dependencies at all, so a missing
- * model key degrades the product rather than breaking it: `llmConfig().enabled`
- * is false and the UI hides the suggestion layer.
- *
- * Variable names are vendor-neutral on purpose. Which provider backs
- * `LLM_PROVIDER` is a deployment decision, and no other part of the codebase
- * needs to know the answer.
+ * Server environment, validated at module load. Without a model key the
+ * suggestion layer is hidden; the deterministic engine needs no config.
  */
 const serverEnvSchema = z.object({
   LLM_PROVIDER: z.string().min(1).optional(),
@@ -51,11 +44,7 @@ export type LlmConfig =
       maxOutputTokens: number;
     };
 
-/**
- * A key alone is not enough: the provider and the model must be named too.
- * Half-configured is treated as disabled rather than as an error, so a
- * deployment that simply does not use the feature starts cleanly.
- */
+/** Key, provider and model are all required; a partial config means disabled, not an error. */
 export function llmConfig(): LlmConfig {
   const env = serverEnv();
   if (!env.LLM_API_KEY || !env.LLM_PROVIDER || !env.LLM_MODEL) return { enabled: false };

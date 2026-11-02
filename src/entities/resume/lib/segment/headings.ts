@@ -3,22 +3,15 @@ import { normalize } from '@/shared/lib/text';
 import type { SectionKind } from '../../model/types';
 
 /**
- * Section heading vocabulary, RU and EN.
- *
- * Real resumes do not use canonical headings. They write "Где я работал",
- * "Tech stack", "Про меня", "Чем занимаюсь" or nothing at all. This vocabulary
- * covers the common phrasings; anything it misses falls through to the
- * content-based inference in `segment.ts`, which never relies on headings.
+ * Section heading vocabulary, RU and EN, including informal phrasings like
+ * "Где я работал". Unmatched headings fall back to content inference.
  */
 
 interface HeadingPattern {
   kind: SectionKind;
   /** Matched against the normalised heading text. */
   keywords: string[];
-  /**
-   * Confidence when a keyword matches. Lower for phrasings that are ambiguous:
-   * "projects" can head a portfolio section or a sub-list inside one job.
-   */
+  /** Lower for ambiguous words: "projects" can also be a sub-list inside a job. */
   confidence: number;
 }
 
@@ -263,13 +256,7 @@ export interface HeadingMatch {
   confidence: number;
 }
 
-/**
- * Classify a candidate heading.
- *
- * Exact matches win over containment so that "Work experience" does not get
- * classified by the substring "work" alone, and a heading combining two topics
- * ("Skills & Tools") resolves to the first pattern that matches whole.
- */
+/** Exact matches win over containment, so "Work experience" is not read as "work". */
 export function classifyHeading(text: string): HeadingMatch | null {
   const cleaned = normalize(text).replace(DECORATION_RE, '').trim();
   if (cleaned.length === 0 || cleaned.length > 64) return null;
@@ -280,7 +267,7 @@ export function classifyHeading(text: string): HeadingMatch | null {
     }
   }
 
-  // Containment pass, longest keyword first so the most specific phrasing wins.
+  // Longest keyword first, so the most specific phrasing wins.
   const candidates = HEADING_PATTERNS.flatMap((pattern) =>
     pattern.keywords.map((keyword) => ({ pattern, keyword })),
   ).sort((a, b) => b.keyword.length - a.keyword.length);

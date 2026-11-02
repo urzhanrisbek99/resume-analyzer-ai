@@ -31,14 +31,7 @@ export interface FindingCardProps {
   enhancementAvailable: boolean;
 }
 
-/**
- * One finding.
- *
- * Collapsed it shows the claim; expanded it shows why it matters, what to do,
- * and a rewrite of a real line where the rule could produce one. The "why" is
- * not decoration: a candidate who understands the reason will fix the whole
- * resume, while one who is only told "add numbers" will patch one bullet.
- */
+/** One finding: the claim when collapsed; why, how to fix and an example rewrite when expanded. */
 export function FindingCard({
   finding,
   expanded,

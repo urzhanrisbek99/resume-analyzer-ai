@@ -12,12 +12,8 @@ import {
 } from './types';
 
 /**
- * DOCX extraction, straight from OOXML.
- *
- * A generic docx-to-HTML converter throws away exactly the things this product
- * needs to judge: which text sits in a table, which sits in a floating text box,
- * whether the section is set in two columns, and which fonts are in play. So the
- * archive is unzipped and `word/document.xml` is read directly.
+ * DOCX extraction from the raw OOXML. Generic converters drop what the rules
+ * need: tables, text boxes, section columns and fonts.
  */
 
 const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -150,15 +146,8 @@ interface DocxBlock {
 }
 
 /**
- * Find descendants by namespace and local name, by walking the tree.
- *
- * `getElementsByTagNameNS` is the obvious call and is specified, but it is not
- * implemented by every DOM: happy-dom returns an empty list from it while
- * reporting the correct `namespaceURI` on each element. Walking keeps the
- * namespace check -- so a `w:p` is still distinguished from any other `p` --
- * without depending on an optional method.
- *
- * A pass over a resume-sized document is a few thousand nodes.
+ * Walks the tree instead of `getElementsByTagNameNS`, which happy-dom does
+ * not implement.
  */
 function findAll(root: Element | Document, namespace: string, localName: string): Element[] {
   const found: Element[] = [];
@@ -177,7 +166,6 @@ function findAll(root: Element | Document, namespace: string, localName: string)
   return found;
 }
 
-/** The first match, or null. */
 function findFirst(root: Element | Document, namespace: string, localName: string): Element | null {
   return findAll(root, namespace, localName)[0] ?? null;
 }
@@ -226,9 +214,8 @@ function readParagraph(paragraph: Element): DocxBlock | null {
   const isListItem = properties ? firstChildNS(properties, 'numPr') !== null : false;
 
   return {
-    // Word stores list markers as numbering properties rather than literal
-    // characters. Bullet detection downstream looks for a marker, so put one in
-    // here, where both `plainText` and the positioned lines pick it up.
+    // Word stores list markers as numbering properties; add a literal one so
+    // bullet detection sees it.
     text: isListItem && text.length > 0 && !LIST_MARKER_RE.test(text) ? `• ${text}` : text,
     headingLevel: headingMatch?.[1] ? Number(headingMatch[1]) : null,
     isBold: hasBold(runProperties) || hasBold(firstRunProperties),
@@ -239,10 +226,7 @@ function readParagraph(paragraph: Element): DocxBlock | null {
   };
 }
 
-/**
- * Flatten a table into one block per row, keeping the cell count so the
- * tabular-layout rule can report how much content depends on a table.
- */
+/** One block per row; the cell count feeds the table-layout rule. */
 function readTable(table: Element): DocxBlock[] {
   const rows: DocxBlock[] = [];
 
@@ -395,11 +379,7 @@ function readPageCount(archive: Record<string, Uint8Array>): number | null {
   }
 }
 
-/**
- * DOCX has no coordinates, so geometry is synthesised: a monotonic y from the
- * block order and an x from the paragraph indent. That is enough for the rules
- * that read geometry, and column detection comes from `sectPr` instead.
- */
+/** DOCX has no coordinates: y follows block order, x comes from the indent. */
 function toPositionedLines(blocks: DocxBlock[], pageCount: number): PositionedLine[] {
   const perPage = Math.max(1, Math.ceil(blocks.length / Math.max(1, pageCount)));
 

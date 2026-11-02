@@ -15,12 +15,9 @@ import type { Finding } from '@/entities/analysis';
 import { assertRedacted, redactForLlm, restore, type ResumeDocument } from '@/entities/resume';
 
 /**
- * The client half of the suggestion layer.
- *
- * Redaction happens here, not on the server, because this is the only side that
- * holds the document. The server receives placeholders and has nothing to leak.
- * `assertRedacted` runs immediately before the request and throws rather than
- * returning false: a redaction bug must stop the request, not degrade it.
+ * Client side of the suggestion layer. Redaction happens here because only
+ * the client holds the document; `assertRedacted` throws before any request
+ * that would leak.
  */
 
 export interface EnhanceOutcome {
@@ -65,12 +62,8 @@ export async function requestSuggestions({
     );
   }
 
-  /*
-   * Every redaction pass is merged into one map before anything is restored.
-   * The placeholders for known contact values are stable across passes, but the
-   * catch-all ones are numbered per call -- restoring an excerpt against only
-   * the document map would leave stray placeholders in the output.
-   */
+  // Merge every redaction map before restoring: catch-all placeholders are
+  // numbered per call, so the document map alone would leave some behind.
   const entries: Record<string, string> = {};
   const redact = (text?: string) => {
     const result = text === undefined ? redactForLlm(document) : redactForLlm(document, text);
@@ -130,7 +123,6 @@ export async function requestSuggestions({
       return err(appError('llm-failed', 'Ответ сервиса не соответствует ожидаемому формату.'));
     }
 
-    // Put the real names and links back so the rewrite reads naturally.
     const map = { entries };
     return ok({
       model: parsed.data.model,
@@ -149,13 +141,8 @@ export async function requestSuggestions({
 }
 
 /**
- * Which language the rewrite comes back in.
- *
- * Not simply `primary`: a Russian CV in IT is classified as mixed, because
- * every technology on it is spelled in Latin -- `React`, `PostgreSQL`, `CI/CD`.
- * Reading that as English would answer a Russian candidate in English. The
- * script of the prose decides, and the prose is whatever the minority of Latin
- * characters is not.
+ * Language of the rewrite. A Russian IT resume is "mixed" because tech names
+ * are Latin, so the script of the remaining prose decides.
  */
 function rewriteLanguage({ language }: ResumeDocument): EnhanceRequest['context']['language'] {
   if (language.primary === 'ru') return 'ru';
@@ -163,7 +150,6 @@ function rewriteLanguage({ language }: ResumeDocument): EnhanceRequest['context'
   return 'en';
 }
 
-/** The lines a finding points at, taken from the document it was produced from. */
 export function excerptsFor(finding: Finding, document: ResumeDocument): string[] {
   const seen = new Set<string>();
 
@@ -176,7 +162,6 @@ export function excerptsFor(finding: Finding, document: ResumeDocument): string[
   return [...seen].slice(0, MAX_EXCERPTS);
 }
 
-/** Whether a finding can be rewritten at all, for deciding to show the action. */
 export function canEnhance(finding: Finding, document: ResumeDocument): boolean {
   return excerptsFor(finding, document).length > 0;
 }

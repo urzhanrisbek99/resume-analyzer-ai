@@ -10,13 +10,7 @@ import type { RawExtraction } from './types';
 
 export type { PositionedLine, RawExtraction } from './types';
 
-/**
- * Format dispatch.
- *
- * Extraction runs in the browser and only in the browser: the file is read from
- * an ArrayBuffer already in memory and no byte of it is ever sent anywhere. See
- * docs/adr/0003-privacy-boundary.md.
- */
+/** Format dispatch. Runs in the browser on bytes already in memory (ADR 0003). */
 
 export function detectFormat(fileName: string, mimeType: string): SourceFormat | null {
   const extension = fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
