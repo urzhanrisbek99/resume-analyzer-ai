@@ -1,7 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const PORT = Number(process.env.PORT ?? 3000);
-const baseURL = `http://127.0.0.1:${PORT}`;
+/** Set E2E_BASE_URL to run the suite against a deployment instead of a local build. */
+const remoteURL = process.env.E2E_BASE_URL;
+const baseURL = remoteURL ?? `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -19,10 +21,12 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'mobile-safari', use: { ...devices['iPhone 14'] } },
   ],
-  webServer: {
-    command: 'npm run build && npm run start',
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
-  },
+  webServer: remoteURL
+    ? undefined
+    : {
+        command: 'npm run build && npm run start',
+        url: baseURL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 180_000,
+      },
 });
