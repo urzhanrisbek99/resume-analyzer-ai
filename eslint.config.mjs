@@ -15,19 +15,68 @@ import tseslint from 'typescript-eslint';
  *      (FSD 2.1), never through the public API of the target entity.
  */
 const fsdElements = [
-  { type: 'app', pattern: 'app/**/*', mode: 'full' },
+  { type: 'app', pattern: 'app', partialMatch: false },
   // `entities-x` must precede `entities`: it is a more specific path.
-  {
-    type: 'entities-x',
-    pattern: 'src/entities/*/@x/*',
-    mode: 'full',
-    capture: ['slice', 'target'],
-  },
+  { type: 'entities-x', pattern: 'src/entities/*/@x', partialMatch: false, capture: ['slice'] },
   { type: 'views', pattern: 'src/views/*', capture: ['slice'] },
   { type: 'widgets', pattern: 'src/widgets/*', capture: ['slice'] },
   { type: 'features', pattern: 'src/features/*', capture: ['slice'] },
   { type: 'entities', pattern: 'src/entities/*', capture: ['slice'] },
   { type: 'shared', pattern: 'src/shared/*', capture: ['segment'] },
+];
+
+/** The files each element exposes to the layers above it. */
+const publicApi = {
+  app: '**',
+  views: 'index.ts',
+  widgets: 'index.ts',
+  features: 'index.ts',
+  entities: 'index.ts',
+  'entities-x': '*.ts',
+  // `shared` is a set of independent segments, each file its own API.
+  shared: ['*.ts', '*.tsx'],
+};
+
+/** Which layers each layer may import, strictly downwards. */
+const allowedLayers = {
+  app: ['app', 'views', 'widgets', 'features', 'entities', 'shared'],
+  views: ['widgets', 'features', 'entities', 'shared'],
+  widgets: ['features', 'entities', 'shared'],
+  features: ['entities', 'shared'],
+  entities: ['shared'],
+  'entities-x': ['shared'],
+  shared: ['shared'],
+};
+
+const fsdPolicies = [
+  ...Object.entries(allowedLayers).map(([from, targets]) => ({
+    from: { element: { type: from } },
+    allow: targets.map((type) => ({
+      to: { element: { type, fileInternalPath: publicApi[type] } },
+    })),
+  })),
+  // An entity reaches another entity only through that entity's `@x` segment.
+  {
+    from: { element: { type: 'entities' } },
+    allow: {
+      to: {
+        element: {
+          type: 'entities-x',
+          captured: { slice: '!{{from.element.captured.slice}}' },
+        },
+      },
+    },
+  },
+  // `@x` re-exports its owner's internals for one consumer, so it may read
+  // any file of the entity it belongs to.
+  {
+    from: { element: { type: 'entities-x' } },
+    allow: {
+      to: {
+        element: { type: 'entities', captured: { slice: '{{from.element.captured.slice}}' } },
+      },
+    },
+  },
 ];
 
 export default tseslint.config(
@@ -82,68 +131,15 @@ export default tseslint.config(
       'boundaries/elements': fsdElements,
     },
     rules: {
-      'boundaries/no-private': ['error', { allowUncles: false }],
-      'boundaries/element-types': [
-        'error',
-        {
-          default: 'disallow',
-          rules: [
-            // `app` covers the router files and the global stylesheet, which
-            // reference each other; it is one layer, not a set of slices.
-            { from: 'app', allow: ['app', 'views', 'widgets', 'features', 'entities', 'shared'] },
-            { from: 'views', allow: ['widgets', 'features', 'entities', 'shared'] },
-            { from: 'widgets', allow: ['features', 'entities', 'shared'] },
-            { from: 'features', allow: ['entities', 'shared'] },
-            // An entity may reach another entity only through its `@x` segment.
-            {
-              from: 'entities',
-              allow: ['shared', ['entities-x', { slice: '!${from.slice}' }]],
-            },
-            // The `@x` segment describes one entity in terms of another, so it
-            // may read the entity that owns it, plus shared.
-            {
-              from: 'entities-x',
-              allow: ['shared', ['entities', { slice: '${from.slice}' }]],
-            },
-            { from: 'shared', allow: ['shared'] },
-          ],
-        },
-      ],
-      'boundaries/entry-point': [
-        'error',
-        {
-          default: 'disallow',
-          rules: [
-            // Slices expose exactly one public API file.
-            { target: ['views', 'widgets', 'features', 'entities'], allow: 'index.ts' },
-            { target: ['entities-x'], allow: '*.ts' },
-            // `shared` is a set of independent segments, each with its own API.
-            { target: ['shared'], allow: ['*.ts', '*.tsx', 'index.ts', 'index.tsx'] },
-            { target: ['app'], allow: '**' },
-          ],
-        },
-      ],
+      'boundaries/dependencies': ['error', { default: 'disallow', policies: fsdPolicies }],
     },
-  },
-
-  {
-    // The `@x` segment is an internal view of the entity that owns it: it
-    // re-exports that entity's own model for one named consumer. Reaching the
-    // model directly is the point of the notation, so the public-API rule does
-    // not apply here. `boundaries/element-types` still governs which entity may
-    // consume it, which is the constraint that actually matters.
-    name: 'project/fsd-cross-import-surface',
-    files: ['src/entities/*/@x/**'],
-    rules: { 'boundaries/entry-point': 'off' },
   },
 
   {
     name: 'project/tests',
     files: ['**/*.test.ts', '**/*.test.tsx', 'tests/**/*.ts'],
     rules: {
-      'boundaries/element-types': 'off',
-      'boundaries/entry-point': 'off',
-      'boundaries/no-private': 'off',
+      'boundaries/dependencies': 'off',
       'no-console': 'off',
     },
   },
